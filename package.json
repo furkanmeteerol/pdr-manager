@@ -1,0 +1,133 @@
+{
+  "name": "pdr-manager",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Windows-first, local-first professional student guidance & psychological counseling management application",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "rebuild-native": "npx @electron/rebuild -f -w better-sqlite3 --arch x64",
+    "rebuild-node": "npm rebuild better-sqlite3",
+    "dist": "npm run build && npm run rebuild-native && electron-builder --win",
+    "dist:nsis": "npm run build && npm run rebuild-native && electron-builder --win nsis",
+    "dist:dir": "npm run build && npm run rebuild-native && electron-builder --win --dir",
+    "dist:mac": "npm run build && electron-builder --mac --arm64",
+    "test": "npm run rebuild-node && vitest run",
+    "test:watch": "npm run rebuild-node && vitest",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "node scripts/patch-pptx-renderer.js"
+  },
+  "build": {
+    "appId": "com.pdrmanager.app",
+    "productName": "PDR Manager",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PDR Manager",
+      "uninstallDisplayName": "PDR Manager",
+      "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "dir",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.education",
+      "identity": null
+    },
+    "dmg": {
+      "title": "PDR Manager M2 Apple Silicon Setup",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "forceCodeSigning": false,
+    "npmRebuild": false,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**"
+    ],
+    "directories": {
+      "output": "release"
+    }
+  },
+  "dependencies": {
+    "@aiden0z/pptx-renderer": "^1.2.4",
+    "better-sqlite3": "^11.8.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.39.3",
+    "hash-wasm": "^4.12.0",
+    "lucide-react": "^0.475.0",
+    "mammoth": "^1.12.1",
+    "pdfjs-dist": "^4.10.38",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.29.0",
+    "tailwind-merge": "^3.0.1",
+    "word-extractor": "^1.0.4",
+    "zod": "^3.24.2",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^20.17.19",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
+    "linkedom": "^0.18.13",
+    "postcss": "^8.5.2",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6",
+    "vitest": "^3.0.5"
+  }
+}

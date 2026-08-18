@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-main: #f4f6f9;
+    --card-bg: #ffffff;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --border-color: #e2e8f0;
+
+    /* GameKit Theme Tokens */
+    --background: #ffffff;
+    --foreground: #1e293b;
+    --primary: #2563eb;
+    --primary-foreground: #ffffff;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #1e293b;
+    --accent: #3b82f6;
+    --accent-foreground: #ffffff;
+    --muted: #f8fafc;
+    --muted-foreground: #64748b;
+    --border: #e2e8f0;
+    --ring: #3b82f6;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+  }
+
+  body {
+    user-select: none;
+    -webkit-user-drag: none;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+}
+
+/* Modern light scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Custom Table Styles */
+.pdr-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.pdr-table th {
+  background-color: #f8fafc;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.pdr-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.82rem;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.pdr-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* DOCX Preview Styles */
+.docx-render-content h1 { font-size: 1.35rem; font-weight: 800; color: #0f172a; margin-top: 1rem; margin-bottom: 0.5rem; }
+.docx-render-content h2 { font-size: 1.15rem; font-weight: 700; color: #1e293b; margin-top: 0.85rem; margin-bottom: 0.4rem; }
+.docx-render-content h3 { font-size: 1.05rem; font-weight: 700; color: #334155; margin-top: 0.75rem; margin-bottom: 0.35rem; }
+.docx-render-content p { margin-bottom: 0.75rem; line-height: 1.6; }
+.docx-render-content table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.82rem; }
+.docx-render-content th, .docx-render-content td { border: 1px solid #cbd5e1; padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+.docx-render-content th { background-color: #f8fafc; font-weight: 700; color: #1e293b; }
+.docx-render-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+.docx-render-content ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+.docx-render-content li { margin-bottom: 0.25rem; }
+.docx-render-content strong { font-weight: 700; color: #0f172a; }
+.docx-render-content em { font-style: italic; }
+.docx-render-content blockquote { border-left: 3px solid #94a3b8; padding-left: 0.75rem; color: #64748b; font-style: italic; margin: 0.75rem 0; }
+
+/* Study Plan Rich Text Content Styles */
+.study-plan-rich-content ul { list-style-type: disc; padding-left: 1.25rem; margin-top: 0.25rem; margin-bottom: 0.25rem; }
+.study-plan-rich-content ol { list-style-type: decimal; padding-left: 1.25rem; margin-top: 0.25rem; margin-bottom: 0.25rem; }
+.study-plan-rich-content li { margin-bottom: 0.15rem; }
+.study-plan-rich-content p { margin-bottom: 0.25rem; min-height: 1em; }
+.study-plan-rich-content b, .study-plan-rich-content strong { font-weight: 700; color: #0f172a; }
+.study-plan-rich-content i, .study-plan-rich-content em { font-style: italic; }
+.study-plan-rich-content u { text-decoration: underline; }
+
+/* Print & PDF Report Styles */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  header, nav, aside, .print\:hidden, [class*="print:hidden"] {
+    display: none !important;
+  }
+
+  .survey-print-container {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .survey-print-report {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    page-break-after: avoid;
+  }
+}
+
