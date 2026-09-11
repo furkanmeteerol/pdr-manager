@@ -1,6 +1,6 @@
 {
   "name": "pdr-manager",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "type": "module",
   "description": "Windows-first, local-first professional student guidance & psychological counseling management application",
   "main": "dist-electron/main.js",
