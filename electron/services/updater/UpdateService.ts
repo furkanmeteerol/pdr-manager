@@ -3,6 +3,7 @@ import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { UpdateStatus, UpdateProgress } from '@shared/ipc-types';
 import { logger } from '../logger/Logger';
 import { getClientUpdateToken } from './UpdateConfig';
+import packageJson from '../../../package.json';
 
 export const GITHUB_OWNER = 'furkanmeteerol';
 export const GITHUB_REPO = 'pdr-manager';
@@ -37,7 +38,7 @@ function getCurrentAppVersion(): string {
       if (v) return v;
     }
   } catch {}
-  return process.env.npm_package_version || '1.0.2';
+  return process.env.npm_package_version || packageJson?.version || '1.0.0';
 }
 
 export class UpdateService {

@@ -125,7 +125,7 @@ describe('PDR Manager Auto-Updater Test Suite (GitHub Releases & Private Repo)',
     });
   });
 
-  describe('4. SQLite Database & User Data Preservation Simulation', () => {
+  describe('5. SQLite Database & User Data Preservation Simulation', () => {
     const testTempDir = path.join(process.cwd(), 'temp_test_updater_db_preservation');
     const dbDir = path.join(testTempDir, 'database');
     const dbPath = path.join(dbDir, 'pdr.sqlite');
