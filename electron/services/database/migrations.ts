@@ -1046,6 +1046,23 @@ export const MIGRATIONS: MigrationStep[] = [
 
       CREATE INDEX IF NOT EXISTS idx_survey_snapshots_app ON survey_result_snapshots(application_id);
     `
+  },
+  {
+    version: 15,
+    name: '0015_classes_pdf_upload_datetime',
+    sql: `
+      ALTER TABLE classes ADD COLUMN pdf_uploaded_at INTEGER;
+      ALTER TABLE classes ADD COLUMN pdf_upload_date TEXT;
+      ALTER TABLE classes ADD COLUMN pdf_upload_time TEXT;
+    `
+  },
+  {
+    version: 16,
+    name: '0016_counseling_activities_type_and_time',
+    sql: `
+      ALTER TABLE counseling_activities ADD COLUMN type TEXT NOT NULL DEFAULT 'activity';
+      ALTER TABLE counseling_activities ADD COLUMN activity_time TEXT;
+    `
   }
 ];
 

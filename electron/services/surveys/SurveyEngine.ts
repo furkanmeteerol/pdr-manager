@@ -1,5 +1,13 @@
+import { evaluateBurdonTest } from '../../../shared/burdonDikkatEvaluation';
+import { evaluateIndividualBNA } from '../../../shared/basarisizlikNedenleriEvaluation';
+import { evaluateCalismaDavranisi } from '../../../shared/calismaDavranisiEvaluation';
+import { evaluateAutomaticThoughts } from '../../../shared/automaticThoughtsEvaluation';
+import { evaluateAkademikBenlikAlgisi } from '../../../shared/akademikBenlikAlgisiEvaluation';
+import { evaluateKimeGoreBenNeyim } from '../../../shared/kimeGoreBenNeyimEvaluation';
+import { evaluateRosenbergBenlikSaygisi } from '../../../shared/rosenbergBenlikSaygisiEvaluation';
+import { evaluateProblemTaramaListesi } from '../../../shared/problemTaramaListesiEvaluation';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { eq, isNull, and, desc, sql } from 'drizzle-orm';
+import { eq, isNull, and, or, desc, sql } from 'drizzle-orm';
 import crypto from 'node:crypto';
 import * as schema from '@database/schema';
 import { SyncEngine } from '../sync/SyncEngine';
@@ -18,6 +26,9 @@ import {
 import { logger } from '../logger/Logger';
 import { ScoringEngine } from '../survey/ScoringEngine';
 import { DEVAMSIZLIK_NEDENLERI_ANKETI, RealSurveyDefinition } from './definitions/devamsizlikNedenleriAnketi';
+import { SINAV_KAYGISI_OLCEGI } from './definitions/sinavKaygisiOlcegi';
+import { WESTSIDE_SINAV_KAYGISI_OLCEGI } from './definitions/westsideSinavKaygisiOlcegi';
+import { SYSTEM_CATALOG_REGISTRY } from './SystemCatalogService';
 
 /**
  * Normalizes Turkish characters, whitespace, and case for reliable student matching
@@ -73,11 +84,13 @@ export class SurveyEngine {
     this.syncEngine = syncEngine;
     void this.syncEngine;
 
-    // Register verified real MEB survey
+    // Register verified real MEB survey and scale catalogs
     try {
       this.registerRealSurvey(DEVAMSIZLIK_NEDENLERI_ANKETI);
+      this.registerRealSurvey(SINAV_KAYGISI_OLCEGI);
+      this.registerRealSurvey(WESTSIDE_SINAV_KAYGISI_OLCEGI);
     } catch (err) {
-      logger.error('Failed to register Devamsızlık Nedenleri Anketi:', err);
+      logger.error('Failed to register system surveys:', err);
     }
   }
 
@@ -444,7 +457,10 @@ export class SurveyEngine {
     const s = this.db.select()
       .from(schema.surveys)
       .where(and(
-        sql`(${schema.surveys.slug} = ${slug} OR ${schema.surveys.id} = ${slug})`,
+        or(
+          eq(schema.surveys.slug, slug),
+          eq(schema.surveys.id, slug)
+        ),
         isNull(schema.surveys.deletedAt)
       ))
       .get();
@@ -540,6 +556,9 @@ export class SurveyEngine {
       .where(and(eq(schema.surveyApplications.surveyId, s.id), isNull(schema.surveyApplications.deletedAt)))
       .get()?.count || 0;
 
+    const catalogDef = SYSTEM_CATALOG_REGISTRY.find(c => c.slug === s.slug || c.id === s.id);
+    const resultPresentation = catalogDef?.resultPresentation;
+
     return {
       id: s.id,
       slug: s.slug || s.id,
@@ -568,9 +587,9 @@ export class SurveyEngine {
         questions: questionsWithOpts,
         subscales,
         interpretations,
-        resultPresentation: s.slug === 'devamsizlik-nedenleri-anketi' ? DEVAMSIZLIK_NEDENLERI_ANKETI.resultPresentation : undefined
+        resultPresentation
       },
-      resultPresentation: s.slug === 'devamsizlik-nedenleri-anketi' ? DEVAMSIZLIK_NEDENLERI_ANKETI.resultPresentation : undefined,
+      resultPresentation,
       applicationCount: appCount,
       createdAt: s.createdAt,
       updatedAt: s.updatedAt
@@ -716,6 +735,302 @@ export class SurveyEngine {
       version.versionNumber
     );
 
+    // For Burdon Dikkat Testi, compute Burdon evaluation and store inside resultSnapshot
+    let appStartedAt = now - (survey.estimatedMinutes ? survey.estimatedMinutes * 60000 : 300000);    // For Burdon Dikkat Testi, compute custom metrics
+    if (survey.slug === 'burdon-dikkat-testi' || survey.id === 'srv-burdon-dikkat-testi' || (survey as any).code === 'BURDON') {
+      const burdonEval = evaluateBurdonTest(payload.answers);
+      calculated.totalScore = burdonEval.correctMarkings;
+      (calculated.resultSnapshot as any).burdonEvaluation = burdonEval;
+      (calculated.resultSnapshot as any).totalScore = burdonEval.correctMarkings;
+      if (!calculated.resultSnapshot.rawMetrics) {
+        calculated.resultSnapshot.rawMetrics = {};
+      }
+      (calculated.resultSnapshot.rawMetrics as any).burdonEvaluation = burdonEval;
+      (calculated.resultSnapshot.rawMetrics as any).burdonAnswers = payload.answers;
+      (calculated.resultSnapshot.rawMetrics as any).elapsedSeconds = burdonEval.elapsedSeconds;
+      (calculated.resultSnapshot.rawMetrics as any).configuredDurationSeconds = burdonEval.configuredDurationSeconds;
+      (calculated.resultSnapshot.rawMetrics as any).correctMarkings = burdonEval.correctMarkings;
+      (calculated.resultSnapshot.rawMetrics as any).omittedTargets = burdonEval.omittedTargets;
+      (calculated.resultSnapshot.rawMetrics as any).incorrectMarkings = burdonEval.incorrectMarkings;
+      (calculated.resultSnapshot.rawMetrics as any).totalMarkings = burdonEval.totalMarkings;
+      appStartedAt = now - (burdonEval.elapsedSeconds * 1000);
+    }
+
+    // For Başarısızlık Nedenleri Anketi, compute BNA evaluation and store inside resultSnapshot
+    if (survey.slug === 'basarisizlik-nedenleri-anketi' || survey.id === 'srv-basarisizlik-nedenleri-anketi' || (survey as any).code === 'BNA-44') {
+      const subjectText = (
+        (payload as any).subjectText ||
+        (payload.answers as any)?.['subjectText'] ||
+        (payload.answers as any)?.['q0'] ||
+        (payload.answers as any)?.['dersler'] ||
+        ''
+      ).toString().trim();
+      const bnaEval = evaluateIndividualBNA(payload.answers, subjectText);
+      calculated.totalScore = bnaEval.selectedReasonCount;
+      (calculated.resultSnapshot as any).bnaEvaluation = bnaEval;
+      (calculated.resultSnapshot as any).totalScore = bnaEval.selectedReasonCount;
+      (calculated.resultSnapshot as any).subjectText = subjectText;
+      if (!calculated.resultSnapshot.rawMetrics) {
+        calculated.resultSnapshot.rawMetrics = {};
+      }
+      (calculated.resultSnapshot.rawMetrics as any).bnaEvaluation = bnaEval;
+      (calculated.resultSnapshot.rawMetrics as any).subjectText = subjectText;
+      (calculated.resultSnapshot.rawMetrics as any).answers = payload.answers;
+    }
+
+    // For Çalışma Davranışını Değerlendirme Ölçeği (CDDE-73), compute CDDE evaluation and store inside resultSnapshot
+    if (
+      survey.slug === 'calisma-davranisi-olcegi' ||
+      survey.slug === 'calisma-davranisini-degerlendirme-olcegi' ||
+      survey.id === 'srv-calisma-davranisi-olcegi' ||
+      survey.id === 'srv-calisma-davranisini-degerlendirme-olcegi' ||
+      (survey as any).code === 'CDDE-73'
+    ) {
+      const answersObj: Record<string, any> = {};
+      if (calculated.answers && Array.isArray(calculated.answers) && calculated.answers.length > 0) {
+        calculated.answers.forEach((ca, idx) => {
+          const qNum = ca.questionOrder || idx + 1;
+          const val = ca.answerValue || ca.selectedOptionLabel || '';
+          if (val) answersObj[`q${qNum}`] = val;
+          if (ca.questionId) answersObj[ca.questionId] = val;
+        });
+      }
+      if (Object.keys(answersObj).length < 73 && version.questions && Array.isArray(version.questions)) {
+        version.questions.forEach(q => {
+          const qNum = q.questionOrder;
+          if (!answersObj[`q${qNum}`] && !answersObj[q.id]) {
+            const rawAns = Array.isArray(payload.answers)
+              ? payload.answers.find((a: any) => a.questionId === q.id || a.questionOrder === qNum)
+              : (payload.answers as any)?.[`q${qNum}`] || (payload.answers as any)?.[q.id];
+            if (rawAns) {
+              if (typeof rawAns === 'object') {
+                const optId = rawAns.selectedOptionId || rawAns.optionId;
+                const opt = q.options?.find(o => o.id === optId);
+                const val = opt?.optionValue || opt?.optionText || rawAns.answerValue || rawAns.value || rawAns.selectedOptionValue || '';
+                if (val) {
+                  answersObj[`q${qNum}`] = val;
+                  answersObj[q.id] = val;
+                }
+              } else {
+                answersObj[`q${qNum}`] = String(rawAns);
+                answersObj[q.id] = String(rawAns);
+              }
+            }
+          }
+        });
+      }
+      const cddeEval = evaluateCalismaDavranisi(Object.keys(answersObj).length > 0 ? answersObj : payload.answers);
+      calculated.totalScore = cddeEval.totalMismatches;
+      (calculated.resultSnapshot as any).calismaDavranisiEvaluation = cddeEval;
+      (calculated.resultSnapshot as any).totalScore = cddeEval.totalMismatches;
+      if (!calculated.resultSnapshot.rawMetrics) {
+        calculated.resultSnapshot.rawMetrics = {};
+      }
+      (calculated.resultSnapshot.rawMetrics as any).calismaDavranisiEvaluation = cddeEval;
+      (calculated.resultSnapshot.rawMetrics as any).answers = Object.keys(answersObj).length > 0 ? answersObj : payload.answers;
+    }
+
+    // For Otomatik Düşünceler Ölçeği (ATQ-30), compute ATQ evaluation and store inside resultSnapshot
+    if (
+      survey.slug === 'otomatik-dusunceler-olcegi' ||
+      survey.id === 'srv-otomatik-dusunceler-olcegi' ||
+      (survey as any).code === 'ATQ-30'
+    ) {
+      const answersObj: Record<string, any> = {};
+      if (calculated.answers && Array.isArray(calculated.answers) && calculated.answers.length > 0) {
+        calculated.answers.forEach((ca, idx) => {
+          const qNum = ca.questionOrder || idx + 1;
+          const val = ca.answerScore ?? ca.answerValue ?? ca.selectedOptionLabel;
+          if (val !== undefined && val !== null) answersObj[`q${qNum}`] = val;
+          if (ca.questionId) answersObj[ca.questionId] = val;
+        });
+      }
+      if (Object.keys(answersObj).length < 30 && version.questions && Array.isArray(version.questions)) {
+        version.questions.forEach(q => {
+          const qNum = q.questionOrder;
+          if (!answersObj[`q${qNum}`] && !answersObj[q.id]) {
+            const rawAns = Array.isArray(payload.answers)
+              ? payload.answers.find((a: any) => a.questionId === q.id || a.questionOrder === qNum)
+              : (payload.answers as any)?.[`q${qNum}`] || (payload.answers as any)?.[q.id];
+            if (rawAns !== undefined && rawAns !== null) {
+              if (typeof rawAns === 'object') {
+                const optId = rawAns.selectedOptionId || rawAns.optionId;
+                const opt = q.options?.find(o => o.id === optId);
+                const val = opt?.score ?? opt?.scoreValue ?? rawAns.answerScore ?? rawAns.score ?? rawAns.value ?? rawAns.selectedOptionValue;
+                if (val !== undefined && val !== null) {
+                  answersObj[`q${qNum}`] = val;
+                  answersObj[q.id] = val;
+                }
+              } else {
+                answersObj[`q${qNum}`] = rawAns;
+                answersObj[q.id] = rawAns;
+              }
+            }
+          }
+        });
+      }
+      const atqEval = evaluateAutomaticThoughts(Object.keys(answersObj).length > 0 ? answersObj : payload.answers);
+      calculated.totalScore = atqEval.totalScore;
+      (calculated.resultSnapshot as any).automaticThoughtsEvaluation = atqEval;
+      (calculated.resultSnapshot as any).totalScore = atqEval.totalScore;
+      if (!calculated.resultSnapshot.rawMetrics) {
+        calculated.resultSnapshot.rawMetrics = {};
+      }
+      (calculated.resultSnapshot.rawMetrics as any).automaticThoughtsEvaluation = atqEval;
+      (calculated.resultSnapshot.rawMetrics as any).answers = Object.keys(answersObj).length > 0 ? answersObj : payload.answers;
+    }
+
+    // For Akademik Benlik Algısı Ölçeği, compute ABAÖ evaluation and store inside resultSnapshot
+    if (survey.slug === 'akademik-benlik-algisi' || survey.id === 'srv-akademik-benlik-algisi' || (survey as any).code === 'ABAÖ-II-56') {
+      const answersObj: Record<string, any> = {};
+
+      // 1. Primary: map from calculated.answers which has resolved option values and question orders
+      if (calculated.answers && Array.isArray(calculated.answers) && calculated.answers.length > 0) {
+        calculated.answers.forEach((ca, idx) => {
+          const qNum = ca.questionOrder || idx + 1;
+          const val = ca.answerValue || ca.selectedOptionLabel || '';
+          if (val) {
+            answersObj[`q${qNum}`] = val;
+          }
+        });
+      }
+
+      // 2. Secondary: if any questions missing, look up version.questions & payload.answers
+      if (Object.keys(answersObj).length < 56 && version.questions && Array.isArray(version.questions)) {
+        version.questions.forEach(q => {
+          const qNum = q.questionOrder;
+          if (!answersObj[`q${qNum}`]) {
+            const rawAns = Array.isArray(payload.answers)
+              ? payload.answers.find((a: any) => a.questionId === q.id || a.questionOrder === qNum)
+              : (payload.answers as any)?.[`q${qNum}`] || (payload.answers as any)?.[q.id];
+
+            if (rawAns) {
+              if (typeof rawAns === 'object') {
+                const optId = rawAns.selectedOptionId || rawAns.optionId;
+                const opt = q.options?.find(o => o.id === optId);
+                const val = opt?.optionValue || opt?.optionText || rawAns.answerValue || rawAns.value || rawAns.selectedOptionValue || '';
+                if (val) answersObj[`q${qNum}`] = val;
+              } else {
+                answersObj[`q${qNum}`] = String(rawAns);
+              }
+            }
+          }
+        });
+      }
+
+      const abaoEval = evaluateAkademikBenlikAlgisi(answersObj);
+      (calculated.resultSnapshot as any).akademikBenlikEvaluation = abaoEval;
+      if (!calculated.resultSnapshot.rawMetrics) {
+        calculated.resultSnapshot.rawMetrics = {};
+      }
+      (calculated.resultSnapshot.rawMetrics as any).akademikBenlikEvaluation = abaoEval;
+      (calculated.resultSnapshot.rawMetrics as any).answers = payload.answers;
+    }
+
+    // For Kime Göre Ben Neyim?, compute KGBN evaluation and store inside resultSnapshot
+    if (survey.slug === 'kime-gore-ben-neyim' || survey.id === 'srv-kime-gore-ben-neyim' || (survey as any).code === 'KGBN-40') {
+      const kgbnEval = evaluateKimeGoreBenNeyim(
+        payload.answers,
+        (payload as any).otherText || (payload.answers as any)?.['otherText'] || (payload.answers as any)?.['q40_other'] || '',
+        (payload as any).customCharacteristics || (payload.answers as any)?.['customCharacteristics'] || []
+      );
+      calculated.totalScore = kgbnEval.selectedCellCount;
+      (calculated.resultSnapshot as any).kgbnEvaluation = kgbnEval;
+      (calculated.resultSnapshot as any).totalScore = kgbnEval.selectedCellCount;
+      if (!calculated.resultSnapshot.rawMetrics) {
+        calculated.resultSnapshot.rawMetrics = {};
+      }
+      (calculated.resultSnapshot.rawMetrics as any).kgbnEvaluation = kgbnEval;
+      (calculated.resultSnapshot.rawMetrics as any).answers = payload.answers;
+      (calculated.resultSnapshot.rawMetrics as any).otherText = kgbnEval.otherText;
+      (calculated.resultSnapshot.rawMetrics as any).customCharacteristics = kgbnEval.customCharacteristics;
+    }
+
+    // For Rosenberg Benlik Saygısı Envanteri, compute Rosenberg evaluation and store inside resultSnapshot
+    if (survey.slug === 'rosenberg-benlik-saygisi' || survey.id === 'srv-rosenberg-benlik-saygisi' || (survey as any).code === 'ROSENBERG-63') {
+      const answersObj: Record<string, any> = {};
+      if (calculated.answers && Array.isArray(calculated.answers) && calculated.answers.length > 0) {
+        calculated.answers.forEach((ca, idx) => {
+          const qNum = ca.questionOrder || idx + 1;
+          const val = ca.answerValue || ca.selectedOptionLabel || '';
+          if (val) answersObj[`q${qNum}`] = val;
+        });
+      }
+      if (Object.keys(answersObj).length < 63 && version.questions && Array.isArray(version.questions)) {
+        version.questions.forEach(q => {
+          const qNum = q.questionOrder;
+          if (!answersObj[`q${qNum}`]) {
+            const rawAns = Array.isArray(payload.answers)
+              ? payload.answers.find((a: any) => a.questionId === q.id || a.questionOrder === qNum)
+              : (payload.answers as any)?.[`q${qNum}`] || (payload.answers as any)?.[q.id];
+            if (rawAns) {
+              if (typeof rawAns === 'object') {
+                const optId = rawAns.selectedOptionId || rawAns.optionId;
+                const opt = q.options?.find(o => o.id === optId);
+                const val = opt?.optionValue || opt?.optionText || rawAns.answerValue || rawAns.value || rawAns.selectedOptionValue || '';
+                if (val) answersObj[`q${qNum}`] = val;
+              } else {
+                answersObj[`q${qNum}`] = String(rawAns);
+              }
+            }
+          }
+        });
+      }
+      const rosenbergEval = evaluateRosenbergBenlikSaygisi(answersObj);
+      (calculated.resultSnapshot as any).rosenbergEvaluation = rosenbergEval;
+      if (!calculated.resultSnapshot.rawMetrics) {
+        calculated.resultSnapshot.rawMetrics = {};
+      }
+      (calculated.resultSnapshot.rawMetrics as any).rosenbergEvaluation = rosenbergEval;
+      (calculated.resultSnapshot.rawMetrics as any).answers = answersObj;
+    }
+
+    // For Problem Tarama Listesi (PTL-176), compute PTL evaluation and store inside resultSnapshot
+    if (survey.slug === 'problem-tarama-listesi' || survey.id === 'srv-problem-tarama-listesi' || (survey as any).code === 'PTL-176') {
+      const answersObj: Record<string, any> = {};
+      if (calculated.answers && Array.isArray(calculated.answers) && calculated.answers.length > 0) {
+        calculated.answers.forEach((ca, idx) => {
+          const qNum = ca.questionOrder || idx + 1;
+          const val = ca.answerValue || ca.selectedOptionLabel || '';
+          if (val) answersObj[`q${qNum}`] = val;
+          if (ca.questionId) answersObj[ca.questionId] = val;
+        });
+      }
+      if (Object.keys(answersObj).length < 176 && version.questions && Array.isArray(version.questions)) {
+        version.questions.forEach(q => {
+          const qNum = q.questionOrder;
+          if (!answersObj[`q${qNum}`] && !answersObj[q.id]) {
+            const rawAns = Array.isArray(payload.answers)
+              ? payload.answers.find((a: any) => a.questionId === q.id || a.questionOrder === qNum)
+              : (payload.answers as any)?.[`q${qNum}`] || (payload.answers as any)?.[q.id];
+            if (rawAns) {
+              if (typeof rawAns === 'object') {
+                const optId = rawAns.selectedOptionId || rawAns.optionId;
+                const opt = q.options?.find(o => o.id === optId);
+                const val = opt?.optionValue || opt?.optionText || rawAns.answerValue || rawAns.value || rawAns.selectedOptionValue || '';
+                if (val) {
+                  answersObj[`q${qNum}`] = val;
+                  answersObj[q.id] = val;
+                }
+              } else {
+                answersObj[`q${qNum}`] = String(rawAns);
+                answersObj[q.id] = String(rawAns);
+              }
+            }
+          }
+        });
+      }
+      const ptlEval = evaluateProblemTaramaListesi(answersObj);
+      calculated.totalScore = ptlEval.totalSelected;
+      (calculated.resultSnapshot as any).ptlEvaluation = ptlEval;
+      (calculated.resultSnapshot as any).totalScore = ptlEval.totalSelected;
+      if (!calculated.resultSnapshot.rawMetrics) {
+        calculated.resultSnapshot.rawMetrics = {};
+      }
+      (calculated.resultSnapshot.rawMetrics as any).ptlEvaluation = ptlEval;
+      (calculated.resultSnapshot.rawMetrics as any).answers = answersObj;
+    }
+
     const resultSnapshotJson = JSON.stringify(calculated.resultSnapshot);
 
     // 1. Insert Application Attempt
@@ -729,7 +1044,7 @@ export class SurveyEngine {
       attemptNumber: nextAttemptNumber,
       status: 'COMPLETED',
       source: payload.source || 'web',
-      startedAt: now - (survey.estimatedMinutes ? survey.estimatedMinutes * 60000 : 300000),
+      startedAt: appStartedAt,
       completedAt: now,
       resultSnapshot: resultSnapshotJson,
       createdAt: now,
@@ -738,17 +1053,20 @@ export class SurveyEngine {
       lastModifiedDeviceId: this.deviceId
     }).run();
 
-    // 2. Insert Answers
+    // 2. Insert Answers (only for valid questions existing in surveyQuestions schema)
+    const validQuestionIds = new Set(version.questions.map(q => q.id));
     for (const ans of calculated.answers) {
-      const answerId = `ans-${crypto.randomUUID()}`;
-      this.db.insert(schema.surveyAnswers).values({
-        id: answerId,
-        applicationId,
-        questionId: ans.questionId,
-        selectedOptionId: ans.selectedOptionId,
-        answerValue: ans.answerValue,
-        answerScore: ans.answerScore
-      }).run();
+      if (validQuestionIds.has(ans.questionId)) {
+        const answerId = `ans-${crypto.randomUUID()}`;
+        this.db.insert(schema.surveyAnswers).values({
+          id: answerId,
+          applicationId,
+          questionId: ans.questionId,
+          selectedOptionId: ans.selectedOptionId,
+          answerValue: ans.answerValue,
+          answerScore: ans.answerScore
+        }).run();
+      }
     }
 
     // 3. Insert Result Snapshot
@@ -836,6 +1154,334 @@ export class SurveyEngine {
         } catch {}
       }
 
+      // Backward-compatibility & integrity guarantee for Akademik Benlik Algısı Ölçeği
+      if ((r.srv.slug === 'akademik-benlik-algisi' || r.srv.id === 'srv-akademik-benlik-algisi' || (r.srv as any).code === 'ABAÖ-II-56') &&
+          (!resultSnapshot || !resultSnapshot.akademikBenlikEvaluation || resultSnapshot.akademikBenlikEvaluation.totalAnswered === 0 || !resultSnapshot.akademikBenlikEvaluation.overallMean)) {
+        if (!resultSnapshot) resultSnapshot = {};
+        try {
+          const rawAnswers = this.db.select({
+            ans: schema.surveyAnswers,
+            q: schema.surveyQuestions,
+            opt: schema.surveyOptions
+          })
+          .from(schema.surveyAnswers)
+          .leftJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
+          .leftJoin(schema.surveyOptions, eq(schema.surveyAnswers.selectedOptionId, schema.surveyOptions.id))
+          .where(eq(schema.surveyAnswers.applicationId, r.app.id))
+          .orderBy(schema.surveyQuestions.questionOrder, schema.surveyAnswers.id)
+          .all();
+
+          if (rawAnswers.length > 0) {
+            const answersObj: Record<string, any> = {};
+            rawAnswers.forEach((a, idx) => {
+              const qNum = a.q?.questionOrder || idx + 1;
+              answersObj[`q${qNum}`] = a.opt?.optionValue || a.ans.answerValue || a.opt?.optionText || '';
+            });
+            const abaoEval = evaluateAkademikBenlikAlgisi(answersObj);
+            resultSnapshot.akademikBenlikEvaluation = abaoEval;
+            if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+            resultSnapshot.rawMetrics.akademikBenlikEvaluation = abaoEval;
+          }
+        } catch {}
+      }
+
+      // Backward-compatibility & integrity guarantee for Kime Göre Ben Neyim?
+      if ((r.srv.slug === 'kime-gore-ben-neyim' || r.srv.id === 'srv-kime-gore-ben-neyim' || (r.srv as any).code === 'KGBN-40') &&
+          (!resultSnapshot || !resultSnapshot.kgbnEvaluation || typeof resultSnapshot.kgbnEvaluation.selectedCellCount !== 'number')) {
+        if (!resultSnapshot) resultSnapshot = {};
+        try {
+          const rawAnswers = this.db.select({
+            ans: schema.surveyAnswers,
+            q: schema.surveyQuestions,
+            opt: schema.surveyOptions
+          })
+          .from(schema.surveyAnswers)
+          .leftJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
+          .leftJoin(schema.surveyOptions, eq(schema.surveyAnswers.selectedOptionId, schema.surveyOptions.id))
+          .where(eq(schema.surveyAnswers.applicationId, r.app.id))
+          .orderBy(schema.surveyQuestions.questionOrder, schema.surveyAnswers.id)
+          .all();
+
+          const answersObj: Record<string, any> = {};
+          rawAnswers.forEach((a, idx) => {
+            const qNum = a.q?.questionOrder || idx + 1;
+            answersObj[`q${qNum}`] = a.opt?.optionValue || a.ans.answerValue || a.opt?.optionText || '';
+          });
+          const kgbnEval = evaluateKimeGoreBenNeyim(
+            resultSnapshot?.rawMetrics?.answers || answersObj,
+            resultSnapshot?.rawMetrics?.otherText || '',
+            resultSnapshot?.rawMetrics?.customCharacteristics || []
+          );
+          resultSnapshot.kgbnEvaluation = kgbnEval;
+          resultSnapshot.totalScore = kgbnEval.selectedCellCount;
+          if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+          resultSnapshot.rawMetrics.kgbnEvaluation = kgbnEval;
+        } catch {}
+      }
+
+      // Backward-compatibility & integrity guarantee for Rosenberg Benlik Saygısı Envanteri
+      if ((r.srv.slug === 'rosenberg-benlik-saygisi' || r.srv.id === 'srv-rosenberg-benlik-saygisi' || (r.srv as any).code === 'ROSENBERG-63') &&
+          (!resultSnapshot || !resultSnapshot.rosenbergEvaluation || !resultSnapshot.rosenbergEvaluation.subscales)) {
+        if (!resultSnapshot) resultSnapshot = {};
+        try {
+          const rawAnswers = this.db.select({
+            ans: schema.surveyAnswers,
+            q: schema.surveyQuestions,
+            opt: schema.surveyOptions
+          })
+          .from(schema.surveyAnswers)
+          .leftJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
+          .leftJoin(schema.surveyOptions, eq(schema.surveyAnswers.selectedOptionId, schema.surveyOptions.id))
+          .where(eq(schema.surveyAnswers.applicationId, r.app.id))
+          .orderBy(schema.surveyQuestions.questionOrder, schema.surveyAnswers.id)
+          .all();
+
+          if (rawAnswers.length > 0) {
+            const answersObj: Record<string, any> = {};
+            rawAnswers.forEach((a, idx) => {
+              const qNum = a.q?.questionOrder || idx + 1;
+              answersObj[`q${qNum}`] = a.opt?.optionValue || a.ans.answerValue || a.opt?.optionText || '';
+            });
+            const rosenbergEval = evaluateRosenbergBenlikSaygisi(answersObj);
+            resultSnapshot.rosenbergEvaluation = rosenbergEval;
+            if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+            resultSnapshot.rawMetrics.rosenbergEvaluation = rosenbergEval;
+            resultSnapshot.rawMetrics.answers = answersObj;
+          }
+        } catch {}
+      }
+
+      // Backward-compatibility & integrity guarantee for Problem Tarama Listesi (PTL-176)
+      if ((r.srv.slug === 'problem-tarama-listesi' || r.srv.id === 'srv-problem-tarama-listesi' || (r.srv as any).code === 'PTL-176') &&
+          (!resultSnapshot || !resultSnapshot.ptlEvaluation || !resultSnapshot.ptlEvaluation.sections)) {
+        if (!resultSnapshot) resultSnapshot = {};
+        try {
+          const rawAnswers = this.db.select({
+            ans: schema.surveyAnswers,
+            q: schema.surveyQuestions,
+            opt: schema.surveyOptions
+          })
+          .from(schema.surveyAnswers)
+          .leftJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
+          .leftJoin(schema.surveyOptions, eq(schema.surveyAnswers.selectedOptionId, schema.surveyOptions.id))
+          .where(eq(schema.surveyAnswers.applicationId, r.app.id))
+          .orderBy(schema.surveyQuestions.questionOrder, schema.surveyAnswers.id)
+          .all();
+
+          if (rawAnswers.length > 0) {
+            const answersObj: Record<string, any> = {};
+            rawAnswers.forEach((a, idx) => {
+              const qNum = a.q?.questionOrder || idx + 1;
+              const val = a.opt?.optionValue || a.ans.answerValue || a.opt?.optionText || '';
+              answersObj[`q${qNum}`] = val;
+              if (a.q?.id) answersObj[a.q.id] = val;
+            });
+            const ptlEval = evaluateProblemTaramaListesi(answersObj);
+            resultSnapshot.ptlEvaluation = ptlEval;
+            resultSnapshot.totalScore = ptlEval.totalSelected;
+            if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+            resultSnapshot.rawMetrics.ptlEvaluation = ptlEval;
+            resultSnapshot.rawMetrics.answers = answersObj;
+          }
+        } catch {}
+      }
+
+      // Backward-compatibility & integrity guarantee for Çalışma Davranışını Değerlendirme Ölçeği (CDDE-73)
+      if (
+        (r.srv.slug === 'calisma-davranisi-olcegi' ||
+         r.srv.slug === 'calisma-davranisini-degerlendirme-olcegi' ||
+         r.srv.id === 'srv-calisma-davranisi-olcegi' ||
+         r.srv.id === 'srv-calisma-davranisini-degerlendirme-olcegi' ||
+         (r.srv as any).code === 'CDDE-73') &&
+        (!resultSnapshot || !resultSnapshot.calismaDavranisiEvaluation || !resultSnapshot.calismaDavranisiEvaluation.areaScores)
+      ) {
+        if (!resultSnapshot) resultSnapshot = {};
+        try {
+          let cddeEval: any = null;
+          if (resultSnapshot?.rawMetrics?.calismaDavranisiEvaluation?.areaScores) {
+            cddeEval = resultSnapshot.rawMetrics.calismaDavranisiEvaluation;
+          } else if (resultSnapshot?.rawMetrics?.answers) {
+            cddeEval = evaluateCalismaDavranisi(resultSnapshot.rawMetrics.answers);
+          } else {
+            const rawAnswers = this.db.select({
+              ans: schema.surveyAnswers,
+              q: schema.surveyQuestions,
+              opt: schema.surveyOptions
+            })
+            .from(schema.surveyAnswers)
+            .leftJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
+            .leftJoin(schema.surveyOptions, eq(schema.surveyAnswers.selectedOptionId, schema.surveyOptions.id))
+            .where(eq(schema.surveyAnswers.applicationId, r.app.id))
+            .orderBy(schema.surveyQuestions.questionOrder, schema.surveyAnswers.id)
+            .all();
+
+            if (rawAnswers.length > 0) {
+              const answersObj: Record<string, any> = {};
+              rawAnswers.forEach((a, idx) => {
+                const qNum = a.q?.questionOrder || idx + 1;
+                const val = a.opt?.optionValue || a.ans.answerValue || a.opt?.optionText || '';
+                answersObj[`q${qNum}`] = val;
+                if (a.q?.id) answersObj[a.q.id] = val;
+              });
+              cddeEval = evaluateCalismaDavranisi(answersObj);
+            }
+          }
+          if (cddeEval) {
+            resultSnapshot.calismaDavranisiEvaluation = cddeEval;
+            resultSnapshot.totalScore = cddeEval.totalMismatches;
+            if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+            resultSnapshot.rawMetrics.calismaDavranisiEvaluation = cddeEval;
+          }
+        } catch {}
+      }
+
+      // Backward-compatibility & integrity guarantee for Başarısızlık Nedenleri Anketi (BNA-44)
+      if (
+        (r.srv.slug === 'basarisizlik-nedenleri-anketi' ||
+         r.srv.id === 'srv-basarisizlik-nedenleri-anketi' ||
+         (r.srv as any).code === 'BNA-44') &&
+        (!resultSnapshot || !resultSnapshot.bnaEvaluation || !resultSnapshot.bnaEvaluation.areaScores)
+      ) {
+        if (!resultSnapshot) resultSnapshot = {};
+        try {
+          const subjectText = (
+            resultSnapshot?.subjectText ||
+            resultSnapshot?.rawMetrics?.subjectText ||
+            ''
+          ).toString().trim();
+          let bnaEval: any = null;
+          if (resultSnapshot?.rawMetrics?.bnaEvaluation?.areaScores) {
+            bnaEval = resultSnapshot.rawMetrics.bnaEvaluation;
+          } else if (resultSnapshot?.rawMetrics?.answers) {
+            bnaEval = evaluateIndividualBNA(resultSnapshot.rawMetrics.answers, subjectText);
+          } else {
+            const rawAnswers = this.db.select({
+              ans: schema.surveyAnswers,
+              q: schema.surveyQuestions,
+              opt: schema.surveyOptions
+            })
+            .from(schema.surveyAnswers)
+            .leftJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
+            .leftJoin(schema.surveyOptions, eq(schema.surveyAnswers.selectedOptionId, schema.surveyOptions.id))
+            .where(eq(schema.surveyAnswers.applicationId, r.app.id))
+            .orderBy(schema.surveyQuestions.questionOrder, schema.surveyAnswers.id)
+            .all();
+
+            if (rawAnswers.length > 0) {
+              const answersObj: Record<string, any> = {};
+              rawAnswers.forEach((a, idx) => {
+                const qNum = a.q?.questionOrder || idx + 1;
+                const val = a.opt?.optionValue || a.ans.answerValue || a.opt?.optionText || '';
+                answersObj[`q${qNum}`] = val;
+                if (a.q?.id) answersObj[a.q.id] = val;
+              });
+              bnaEval = evaluateIndividualBNA(answersObj, subjectText);
+            }
+          }
+          if (bnaEval) {
+            resultSnapshot.bnaEvaluation = bnaEval;
+            resultSnapshot.totalScore = bnaEval.selectedReasonCount;
+            resultSnapshot.subjectText = subjectText;
+            if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+            resultSnapshot.rawMetrics.bnaEvaluation = bnaEval;
+            resultSnapshot.rawMetrics.subjectText = subjectText;
+          }
+        } catch {}
+      }
+
+      // Backward-compatibility & integrity guarantee for Otomatik Düşünceler Ölçeği (ATQ-30)
+      if (
+        (r.srv.slug === 'otomatik-dusunceler-olcegi' ||
+         r.srv.id === 'srv-otomatik-dusunceler-olcegi' ||
+         (r.srv as any).code === 'ATQ-30') &&
+        (!resultSnapshot || !resultSnapshot.automaticThoughtsEvaluation || resultSnapshot.automaticThoughtsEvaluation.totalScore === undefined)
+      ) {
+        if (!resultSnapshot) resultSnapshot = {};
+        try {
+          let atqEval: any = null;
+          if (resultSnapshot?.rawMetrics?.automaticThoughtsEvaluation?.totalScore !== undefined) {
+            atqEval = resultSnapshot.rawMetrics.automaticThoughtsEvaluation;
+          } else if (resultSnapshot?.rawMetrics?.answers) {
+            atqEval = evaluateAutomaticThoughts(resultSnapshot.rawMetrics.answers);
+          } else {
+            const rawAnswers = this.db.select({
+              ans: schema.surveyAnswers,
+              q: schema.surveyQuestions,
+              opt: schema.surveyOptions
+            })
+            .from(schema.surveyAnswers)
+            .leftJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
+            .leftJoin(schema.surveyOptions, eq(schema.surveyAnswers.selectedOptionId, schema.surveyOptions.id))
+            .where(eq(schema.surveyAnswers.applicationId, r.app.id))
+            .orderBy(schema.surveyQuestions.questionOrder, schema.surveyAnswers.id)
+            .all();
+
+            if (rawAnswers.length > 0) {
+              const answersObj: Record<string, any> = {};
+              rawAnswers.forEach((a, idx) => {
+                const qNum = a.q?.questionOrder || idx + 1;
+                const val = a.opt?.score ?? a.opt?.scoreValue ?? a.ans.answerScore ?? a.ans.answerValue ?? a.opt?.optionText;
+                answersObj[`q${qNum}`] = val;
+                if (a.q?.id) answersObj[a.q.id] = val;
+              });
+              atqEval = evaluateAutomaticThoughts(answersObj);
+            }
+          }
+          if (atqEval) {
+            resultSnapshot.automaticThoughtsEvaluation = atqEval;
+            resultSnapshot.totalScore = atqEval.totalScore;
+            if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+            resultSnapshot.rawMetrics.automaticThoughtsEvaluation = atqEval;
+          }
+        } catch {}
+      }
+
+      // Backward-compatibility & integrity guarantee for Burdon Dikkat Testi
+      if (
+        (r.srv.slug === 'burdon-dikkat-testi' ||
+         r.srv.id === 'srv-burdon-dikkat-testi' ||
+         (r.srv as any).code === 'BURDON') &&
+        (!resultSnapshot || !resultSnapshot.burdonEvaluation || resultSnapshot.burdonEvaluation.correctMarkings === undefined)
+      ) {
+        if (!resultSnapshot) resultSnapshot = {};
+        try {
+          let burdonEval: any = null;
+          if (resultSnapshot?.rawMetrics?.burdonEvaluation?.correctMarkings !== undefined) {
+            burdonEval = resultSnapshot.rawMetrics.burdonEvaluation;
+          } else if (resultSnapshot?.rawMetrics?.burdonAnswers || resultSnapshot?.rawMetrics?.answers) {
+            burdonEval = evaluateBurdonTest(resultSnapshot.rawMetrics.burdonAnswers || resultSnapshot.rawMetrics.answers);
+          } else {
+            const rawAnswers = this.db.select({
+              ans: schema.surveyAnswers,
+              q: schema.surveyQuestions
+            })
+            .from(schema.surveyAnswers)
+            .leftJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
+            .where(eq(schema.surveyAnswers.applicationId, r.app.id))
+            .all();
+
+            if (rawAnswers.length > 0) {
+              burdonEval = evaluateBurdonTest(rawAnswers.map(a => ({ questionId: a.ans.questionId, answerValue: a.ans.answerValue })));
+            }
+          }
+          if (burdonEval) {
+            resultSnapshot.burdonEvaluation = burdonEval;
+            resultSnapshot.totalScore = burdonEval.correctMarkings;
+            if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+            resultSnapshot.rawMetrics.burdonEvaluation = burdonEval;
+          }
+        } catch {}
+      }
+
+      const calculatedTotalScore =
+        resultSnapshot?.totalScore ??
+        resultSnapshot?.kgbnEvaluation?.selectedCellCount ??
+        resultSnapshot?.bnaEvaluation?.selectedReasonCount ??
+        resultSnapshot?.calismaDavranisiEvaluation?.totalMismatches ??
+        resultSnapshot?.automaticThoughtsEvaluation?.totalScore ??
+        resultSnapshot?.burdonEvaluation?.correctMarkings ??
+        resultSnapshot?.ptlEvaluation?.totalSelected;
+
       return {
         id: r.app.id,
         surveyId: r.srv.id,
@@ -854,7 +1500,7 @@ export class SurveyEngine {
         source: r.app.source,
         startedAt: r.app.startedAt || undefined,
         completedAt: r.app.completedAt,
-        totalScore: resultSnapshot?.totalScore,
+        totalScore: calculatedTotalScore,
         resultSnapshot,
         createdAt: r.app.createdAt
       };
@@ -887,7 +1533,7 @@ export class SurveyEngine {
       } catch {}
     }
 
-    // Fetch answers with subscale metadata
+    // Fetch answers with subscale metadata (using leftJoin to ensure custom/dynamic answers like burdon_data and cell IDs are preserved)
     const rawAnswers = this.db.select({
       ans: schema.surveyAnswers,
       q: schema.surveyQuestions,
@@ -895,25 +1541,208 @@ export class SurveyEngine {
       sub: schema.surveySubscales
     })
     .from(schema.surveyAnswers)
-    .innerJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
+    .leftJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
     .leftJoin(schema.surveyOptions, eq(schema.surveyAnswers.selectedOptionId, schema.surveyOptions.id))
     .leftJoin(schema.surveySubscales, eq(schema.surveyQuestions.subscaleId, schema.surveySubscales.id))
     .where(eq(schema.surveyAnswers.applicationId, id))
-    .orderBy(schema.surveyQuestions.questionOrder)
+    .orderBy(schema.surveyQuestions.questionOrder, schema.surveyAnswers.id)
     .all();
 
     const answers = rawAnswers.map(a => ({
       id: a.ans.id,
-      questionId: a.q.id,
-      questionOrder: a.q.questionOrder,
-      questionText: a.q.questionText,
+      questionId: a.ans.questionId,
+      questionOrder: a.q?.questionOrder ?? 0,
+      questionText: a.q?.questionText || a.ans.questionId,
       selectedOptionId: a.ans.selectedOptionId || undefined,
       selectedOptionLabel: a.opt?.optionLabel || a.opt?.optionText || undefined,
       answerValue: a.ans.answerValue || undefined,
       answerScore: a.ans.answerScore ?? undefined,
-      isReverseScored: a.q.isReverseScored === 1,
+      isReverseScored: a.q ? a.q.isReverseScored === 1 : false,
       subscaleCode: a.sub?.code || undefined
     }));
+
+    let finalAnswers = answers;
+    if (resultSnapshot?.rawMetrics?.burdonAnswers && Array.isArray(resultSnapshot.rawMetrics.burdonAnswers)) {
+      finalAnswers = resultSnapshot.rawMetrics.burdonAnswers.map((ba: any, idx: number) => ({
+        id: `ans-snap-${idx}`,
+        questionId: ba.questionId,
+        questionOrder: idx + 1,
+        questionText: ba.questionId,
+        answerValue: ba.answerValue,
+        answerScore: 0,
+        isReverseScored: false
+      }));
+    }
+
+    // ABAÖ guarantee for getApplicationDetail
+    if ((row.srv.slug === 'akademik-benlik-algisi' || row.srv.id === 'srv-akademik-benlik-algisi' || (row.srv as any).code === 'ABAÖ-II-56') &&
+        (!resultSnapshot || !resultSnapshot.akademikBenlikEvaluation || resultSnapshot.akademikBenlikEvaluation.totalAnswered === 0 || !resultSnapshot.akademikBenlikEvaluation.overallMean)) {
+      if (!resultSnapshot) resultSnapshot = {};
+      const answersObj: Record<string, any> = {};
+      answers.forEach((a, idx) => {
+        const qNum = a.questionOrder || idx + 1;
+        answersObj[`q${qNum}`] = a.selectedOptionLabel || a.answerValue || '';
+      });
+      const abaoEval = evaluateAkademikBenlikAlgisi(answersObj);
+      resultSnapshot.akademikBenlikEvaluation = abaoEval;
+      if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+      resultSnapshot.rawMetrics.akademikBenlikEvaluation = abaoEval;
+    }
+
+    // KGBN guarantee for getApplicationDetail
+    if ((row.srv.slug === 'kime-gore-ben-neyim' || row.srv.id === 'srv-kime-gore-ben-neyim' || (row.srv as any).code === 'KGBN-40') &&
+        (!resultSnapshot || !resultSnapshot.kgbnEvaluation || typeof resultSnapshot.kgbnEvaluation.selectedCellCount !== 'number')) {
+      if (!resultSnapshot) resultSnapshot = {};
+      const answersObj: Record<string, any> = {};
+      answers.forEach((a, idx) => {
+        const qNum = a.questionOrder || idx + 1;
+        answersObj[`q${qNum}`] = a.selectedOptionLabel || a.answerValue || '';
+      });
+      const kgbnEval = evaluateKimeGoreBenNeyim(
+        resultSnapshot?.rawMetrics?.answers || answersObj,
+        resultSnapshot?.rawMetrics?.otherText || '',
+        resultSnapshot?.rawMetrics?.customCharacteristics || []
+      );
+      resultSnapshot.kgbnEvaluation = kgbnEval;
+      resultSnapshot.totalScore = kgbnEval.selectedCellCount;
+      if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+      resultSnapshot.rawMetrics.kgbnEvaluation = kgbnEval;
+    }
+
+    // Rosenberg guarantee for getApplicationDetail
+    if ((row.srv.slug === 'rosenberg-benlik-saygisi' || row.srv.id === 'srv-rosenberg-benlik-saygisi' || (row.srv as any).code === 'ROSENBERG-63') &&
+        (!resultSnapshot || !resultSnapshot.rosenbergEvaluation || !resultSnapshot.rosenbergEvaluation.subscales)) {
+      if (!resultSnapshot) resultSnapshot = {};
+      const answersObj: Record<string, any> = {};
+      answers.forEach((a, idx) => {
+        const qNum = a.questionOrder || idx + 1;
+        answersObj[`q${qNum}`] = a.selectedOptionLabel || a.answerValue || '';
+      });
+      const rosenbergEval = evaluateRosenbergBenlikSaygisi(answersObj);
+      resultSnapshot.rosenbergEvaluation = rosenbergEval;
+      if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+      resultSnapshot.rawMetrics.rosenbergEvaluation = rosenbergEval;
+      resultSnapshot.rawMetrics.answers = answersObj;
+    }
+
+    // PTL-176 guarantee for getApplicationDetail
+    if ((row.srv.slug === 'problem-tarama-listesi' || row.srv.id === 'srv-problem-tarama-listesi' || (row.srv as any).code === 'PTL-176') &&
+        (!resultSnapshot || !resultSnapshot.ptlEvaluation || !resultSnapshot.ptlEvaluation.sections)) {
+      if (!resultSnapshot) resultSnapshot = {};
+      const answersObj: Record<string, any> = {};
+      answers.forEach((a, idx) => {
+        const qNum = a.questionOrder || idx + 1;
+        const val = a.selectedOptionLabel || a.answerValue || '';
+        answersObj[`q${qNum}`] = val;
+        if (a.questionId) answersObj[a.questionId] = val;
+      });
+      const ptlEval = evaluateProblemTaramaListesi(answersObj);
+      resultSnapshot.ptlEvaluation = ptlEval;
+      resultSnapshot.totalScore = ptlEval.totalSelected;
+      if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+      resultSnapshot.rawMetrics.ptlEvaluation = ptlEval;
+      resultSnapshot.rawMetrics.answers = answersObj;
+    }
+
+    // CDDE-73 guarantee for getApplicationDetail
+    if (
+      (row.srv.slug === 'calisma-davranisi-olcegi' ||
+       row.srv.slug === 'calisma-davranisini-degerlendirme-olcegi' ||
+       row.srv.id === 'srv-calisma-davranisi-olcegi' ||
+       row.srv.id === 'srv-calisma-davranisini-degerlendirme-olcegi' ||
+       (row.srv as any).code === 'CDDE-73') &&
+      (!resultSnapshot || !resultSnapshot.calismaDavranisiEvaluation || !resultSnapshot.calismaDavranisiEvaluation.areaScores)
+    ) {
+      if (!resultSnapshot) resultSnapshot = {};
+      const answersObj: Record<string, any> = {};
+      answers.forEach((a, idx) => {
+        const qNum = a.questionOrder || idx + 1;
+        const val = a.selectedOptionLabel || a.answerValue || '';
+        answersObj[`q${qNum}`] = val;
+        if (a.questionId) answersObj[a.questionId] = val;
+      });
+      const cddeEval = evaluateCalismaDavranisi(Object.keys(answersObj).length > 0 ? answersObj : resultSnapshot?.rawMetrics?.answers || {});
+      resultSnapshot.calismaDavranisiEvaluation = cddeEval;
+      resultSnapshot.totalScore = cddeEval.totalMismatches;
+      if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+      resultSnapshot.rawMetrics.calismaDavranisiEvaluation = cddeEval;
+    }
+
+    // BNA-44 guarantee for getApplicationDetail
+    if (
+      (row.srv.slug === 'basarisizlik-nedenleri-anketi' ||
+       row.srv.id === 'srv-basarisizlik-nedenleri-anketi' ||
+       (row.srv as any).code === 'BNA-44') &&
+      (!resultSnapshot || !resultSnapshot.bnaEvaluation || !resultSnapshot.bnaEvaluation.areaScores)
+    ) {
+      if (!resultSnapshot) resultSnapshot = {};
+      const subjectText = (
+        resultSnapshot?.subjectText ||
+        resultSnapshot?.rawMetrics?.subjectText ||
+        answers.find(a => a.questionId === 'subjectText' || a.questionId === 'q0' || a.questionId === 'dersler')?.answerValue ||
+        ''
+      ).toString().trim();
+      const answersObj: Record<string, any> = {};
+      answers.forEach((a, idx) => {
+        const qNum = a.questionOrder || idx + 1;
+        const val = a.selectedOptionLabel || a.answerValue || '';
+        answersObj[`q${qNum}`] = val;
+        if (a.questionId) answersObj[a.questionId] = val;
+      });
+      const bnaEval = evaluateIndividualBNA(Object.keys(answersObj).length > 0 ? answersObj : resultSnapshot?.rawMetrics?.answers || {}, subjectText);
+      resultSnapshot.bnaEvaluation = bnaEval;
+      resultSnapshot.totalScore = bnaEval.selectedReasonCount;
+      resultSnapshot.subjectText = subjectText;
+      if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+      resultSnapshot.rawMetrics.bnaEvaluation = bnaEval;
+      resultSnapshot.rawMetrics.subjectText = subjectText;
+    }
+
+    // ATQ-30 guarantee for getApplicationDetail
+    if (
+      (row.srv.slug === 'otomatik-dusunceler-olcegi' ||
+       row.srv.id === 'srv-otomatik-dusunceler-olcegi' ||
+       (row.srv as any).code === 'ATQ-30') &&
+      (!resultSnapshot || !resultSnapshot.automaticThoughtsEvaluation || resultSnapshot.automaticThoughtsEvaluation.totalScore === undefined)
+    ) {
+      if (!resultSnapshot) resultSnapshot = {};
+      const answersObj: Record<string, any> = {};
+      answers.forEach((a, idx) => {
+        const qNum = a.questionOrder || idx + 1;
+        const val = a.answerScore ?? a.answerValue ?? a.selectedOptionLabel;
+        if (val !== undefined && val !== null) answersObj[`q${qNum}`] = val;
+        if (a.questionId) answersObj[a.questionId] = val;
+      });
+      const atqEval = evaluateAutomaticThoughts(Object.keys(answersObj).length > 0 ? answersObj : resultSnapshot?.rawMetrics?.answers || {});
+      resultSnapshot.automaticThoughtsEvaluation = atqEval;
+      resultSnapshot.totalScore = atqEval.totalScore;
+      if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+      resultSnapshot.rawMetrics.automaticThoughtsEvaluation = atqEval;
+    }
+
+    // Burdon guarantee for getApplicationDetail
+    if (
+      (row.srv.slug === 'burdon-dikkat-testi' ||
+       row.srv.id === 'srv-burdon-dikkat-testi' ||
+       (row.srv as any).code === 'BURDON') &&
+      (!resultSnapshot || !resultSnapshot.burdonEvaluation || resultSnapshot.burdonEvaluation.correctMarkings === undefined)
+    ) {
+      if (!resultSnapshot) resultSnapshot = {};
+      const burdonEval = evaluateBurdonTest(resultSnapshot?.rawMetrics?.burdonAnswers || resultSnapshot?.rawMetrics?.answers || answers);
+      resultSnapshot.burdonEvaluation = burdonEval;
+      resultSnapshot.totalScore = burdonEval.correctMarkings;
+      if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+      resultSnapshot.rawMetrics.burdonEvaluation = burdonEval;
+    }
+
+    const calculatedTotalScore =
+      resultSnapshot?.totalScore ??
+      resultSnapshot?.kgbnEvaluation?.selectedCellCount ??
+      resultSnapshot?.bnaEvaluation?.selectedReasonCount ??
+      resultSnapshot?.calismaDavranisiEvaluation?.totalMismatches ??
+      resultSnapshot?.automaticThoughtsEvaluation?.totalScore ??
+      resultSnapshot?.burdonEvaluation?.correctMarkings ??
+      resultSnapshot?.ptlEvaluation?.totalSelected;
 
     return {
       id: row.app.id,
@@ -933,9 +1762,9 @@ export class SurveyEngine {
       source: row.app.source,
       startedAt: row.app.startedAt || undefined,
       completedAt: row.app.completedAt,
-      totalScore: resultSnapshot?.totalScore,
+      totalScore: calculatedTotalScore,
       resultSnapshot,
-      answers,
+      answers: finalAnswers,
       createdAt: row.app.createdAt
     };
   }

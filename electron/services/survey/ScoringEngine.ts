@@ -21,51 +21,37 @@ export interface CalculatedSurveyResult {
 
 export class ScoringEngine {
   /**
-   * Calculates scores, reverse scoring, subscale breakdowns, and interpretation snapshots.
+   * Calculates survey score based on question definitions, option weights, and interpretations.
    */
-  public static calculate(
+  static calculate(
     questions: SurveyQuestionDto[],
-    subscales: SurveySubscaleDto[],
-    interpretations: SurveyInterpretationDto[],
+    subscales: SurveySubscaleDto[] = [],
+    interpretations: SurveyInterpretationDto[] = [],
     rawAnswers: RawAnswerInput[],
-    versionSnapshot: number = 1
+    versionSnapshot: number | Record<string, any> = 1
   ): CalculatedSurveyResult {
     let totalScore = 0;
     let maxPossibleScore = 0;
+    const processedAnswers: SurveyAnswerDto[] = [];
+    const questionMap = new Map(questions.map(q => [q.id, q]));
 
+    // Subscale accumulators
     const subscaleTotals: Record<string, { score: number; count: number; maxScore: number }> = {};
     for (const sub of subscales) {
       subscaleTotals[sub.id] = { score: 0, count: 0, maxScore: 0 };
     }
 
-    const questionMap = new Map<string, SurveyQuestionDto>();
+    // Process each defined question
     for (const q of questions) {
-      questionMap.set(q.id, q);
-    }
-
-    const answerMap = new Map<string, RawAnswerInput>();
-    for (const a of rawAnswers) {
-      answerMap.set(a.questionId, a);
-    }
-
-    const processedAnswers: SurveyAnswerDto[] = [];
-
-    for (const q of questions) {
-      const userAns = answerMap.get(q.id);
+      const userAns = rawAnswers.find(a => a.questionId === q.id);
       let calculatedScore = 0;
-      let selectedOptionLabel = '';
-      let selectedOptionValue = '';
+      let selectedOptionValue: string | undefined = undefined;
+      let selectedOptionLabel: string | undefined = undefined;
 
       // Calculate max possible score for this question
       let questionMaxScore = 0;
       if (q.options && q.options.length > 0) {
-        questionMaxScore = Math.max(...q.options.map(o => o.scoreValue ?? o.score ?? 0));
-      } else if (q.questionType === 'likert_5') {
-        questionMaxScore = 5;
-      } else if (q.questionType === 'likert_4') {
-        questionMaxScore = 4;
-      } else if (q.questionType === 'yes_no') {
-        questionMaxScore = 1;
+        questionMaxScore = Math.max(...q.options.map(o => o.scoreValue ?? 0));
       }
       maxPossibleScore += questionMaxScore;
 
@@ -73,14 +59,12 @@ export class ScoringEngine {
         if (userAns.selectedOptionId && q.options) {
           const opt = q.options.find(o => o.id === userAns.selectedOptionId);
           if (opt) {
-            selectedOptionLabel = opt.optionLabel || opt.optionText;
-            selectedOptionValue = opt.optionValue || opt.id;
-            const rawScore = opt.scoreValue ?? opt.score ?? 0;
+            selectedOptionValue = opt.optionValue;
+            selectedOptionLabel = opt.optionText;
+            const rawScore = opt.scoreValue ?? 0;
 
             if (q.isReverseScored) {
-              if (opt.reverseScoreValue !== undefined && opt.reverseScoreValue !== null && opt.reverseScoreValue !== 0) {
-                calculatedScore = opt.reverseScoreValue;
-              } else if (q.questionType === 'likert_5') {
+              if (q.questionType === 'likert_5') {
                 calculatedScore = 6 - rawScore; // 1->5, 2->4, 3->3, 4->2, 5->1
               } else if (q.questionType === 'likert_4') {
                 calculatedScore = 5 - rawScore; // 1->4, 2->3, 3->2, 4->1
@@ -125,6 +109,20 @@ export class ScoringEngine {
         isReverseScored: q.isReverseScored,
         subscaleCode: matchingSubscale?.code
       });
+    }
+
+    // Preserve any custom / extra raw answers (e.g. burdon_data, cell marking payloads) so they are never lost
+    for (const a of rawAnswers) {
+      if (!questionMap.has(a.questionId)) {
+        processedAnswers.push({
+          questionId: a.questionId,
+          questionOrder: 999,
+          questionText: a.questionId,
+          selectedOptionId: a.selectedOptionId,
+          answerValue: a.answerValue,
+          answerScore: 0
+        });
+      }
     }
 
     // Process Subscale Breakdowns

@@ -1,0 +1,57 @@
+name: Release & Publish (GitHub Releases)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release Version (e.g. 1.0.1)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Validate Version Consistency
+        shell: bash
+        run: |
+          PACKAGE_VER=$(node -p "require('./package.json').version")
+          if [ -n "${{ github.ref_name }}" ] && [[ "${{ github.ref_name }}" == v* ]]; then
+            TAG_VER="${GITHUB_REF_NAME#v}"
+            if [ "$PACKAGE_VER" != "$TAG_VER" ]; then
+              echo "::error::Version mismatch! package.json ($PACKAGE_VER) does not match Git tag ($TAG_VER)"
+              exit 1
+            fi
+          fi
+          echo "Building & Publishing PDR Manager version: v$PACKAGE_VER"
+
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run Test Suite (Regression & Integrity Check)
+        run: npm test
+
+      - name: Build Renderer & Electron Main
+        run: npm run build
+
+      - name: Rebuild Native Modules for Windows x64
+        run: npm run rebuild-native
+
+      - name: Build Windows NSIS & Publish to GitHub Releases
+        run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

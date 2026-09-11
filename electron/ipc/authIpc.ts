@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { ipcMain, app } from 'electron';
 import { AuthService } from '../services/auth/AuthService';
 import { DatabaseService } from '../services/database/DatabaseService';
 import { DashboardService } from '../services/dashboard/DashboardService';
@@ -17,9 +17,10 @@ export function registerAuthIpc(
     const schoolName = databaseService.getMeta('school_name') || 'Cumhuriyet Anadolu Lisesi';
     const counselorName = databaseService.getMeta('counselor_name') || 'Psikolojik Danışman';
     const academicYear = databaseService.getMeta('academic_year') || '2026-2027';
+    const appVersion = (typeof app?.getVersion === 'function' ? app.getVersion() : '1.0.0') || '1.0.0';
 
     return {
-      appVersion: '2.0.0',
+      appVersion,
       isLocked: authService.getIsLocked(),
       hasMasterKey: authService.hasMasterKey(),
       deviceId,
@@ -66,5 +67,20 @@ export function registerAuthIpc(
 
   ipcMain.handle('system:getDashboardSummary', async (): Promise<DashboardSummary> => {
     return dashboardService.getSummary();
+  });
+
+  ipcMain.handle('water:getTodayCount', async (): Promise<number> => {
+    const today = new Date().toISOString().split('T')[0];
+    const key = `water_intake_${today}`;
+    const val = databaseService.getMeta(key);
+    return val ? parseInt(val, 10) || 0 : 0;
+  });
+
+  ipcMain.handle('water:setTodayCount', async (_event, count: number): Promise<number> => {
+    const today = new Date().toISOString().split('T')[0];
+    const key = `water_intake_${today}`;
+    const safeCount = Math.max(0, Math.min(50, Math.floor(count || 0)));
+    databaseService.setMeta(key, String(safeCount));
+    return safeCount;
   });
 }

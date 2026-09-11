@@ -70,12 +70,12 @@ describe('Survey Engine Architecture & Real Survey Verification', () => {
     } catch {}
   });
 
-  it('1. Only real MEB Devamsızlık Nedenleri Anketi exists upon initialization', () => {
+  it('1. Official system surveys (Devamsızlık Nedenleri, Sınav Kaygısı Ölçeği & Westside) exist upon initialization', () => {
     const list = surveyEngine.listSurveys();
-    expect(list.length).toBe(1);
-    expect(list[0].slug).toBe('devamsizlik-nedenleri-anketi');
-    expect(list[0].id).toBe('srv-devamsizlik-nedenleri');
-    expect(list[0].title).toBe('Devamsızlık Nedenleri Anketi');
+    expect(list.length).toBe(3);
+    expect(list.some(s => s.slug === 'devamsizlik-nedenleri-anketi' && s.id === 'srv-devamsizlik-nedenleri')).toBe(true);
+    expect(list.some(s => s.slug === 'sinav-kaygisi-olcegi' && s.id === 'srv-sinav-kaygisi-olcegi')).toBe(true);
+    expect(list.some(s => s.slug === 'westside-sinav-kaygisi-olcegi' && s.id === 'srv-westside-sinav-kaygisi-olcegi')).toBe(true);
   });
 
   it('2. Anket ≠ Uygulama: Aynı öğrencinin aynı anketi birden çok kez doldurabilmesi (Attempt #1, #2, #3)', () => {

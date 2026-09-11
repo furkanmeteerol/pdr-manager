@@ -210,4 +210,100 @@ describe('Devamsızlık Nedenleri Anketi: UI Boyut Filtresi & Profesyonel PDF Pr
       expect(html).toContain('51 Madde');
     });
   });
+
+  describe('PROBLEM 3: Unified Paper Survey Form Clean Header & Footer Tests (All 15 Catalog Surveys)', () => {
+    // Dynamic import of SurveyPaperFormPdfReport and SystemCatalogService
+    it('1. SurveyPaperFormPdfReport produces clean header and no footer across all 15 system catalog surveys', async () => {
+      const { SystemCatalogService } = await import('../electron/services/surveys/SystemCatalogService');
+      const { SurveyPaperFormPdfReport } = await import('../electron/services/surveys/reports/SurveyPaperFormPdfReport');
+
+      const allSurveys = SystemCatalogService.getBuiltinSurveys();
+      expect(allSurveys.length).toBeGreaterThanOrEqual(15);
+
+      for (const survey of allSurveys) {
+        const surveyDto: any = {
+          id: survey.id,
+          slug: survey.slug,
+          code: survey.code,
+          title: survey.title,
+          description: survey.description,
+          questions: survey.questions
+        };
+
+        const html = SurveyPaperFormPdfReport.generateHtml(surveyDto);
+
+        // Positive assertions
+        expect(html).toContain('<!DOCTYPE html>');
+        expect(html).toContain(survey.title);
+
+        if (survey.slug === 'burdon-dikkat-testi') {
+          // Burdon custom layout assertions
+          expect(html).toContain('Adı ve Soyadı:');
+          expect(html).toContain('Numarası:');
+          expect(html).toContain('Sınıfı:');
+          expect(html).not.toContain('Yönerge:');
+        } else {
+          // Standard 14 surveys assertions
+          expect(html).toContain('Adı Soyadı:');
+          expect(html).toContain('Sınıfı / Şubesi:');
+          expect(html).toContain('Okul Numarası:');
+          expect(html).toContain('Tarih:');
+          expect(html).toContain('Yönerge:');
+        }
+
+        // Cleanliness assertions (no institutional header, no description subtitle, no PDR manager branding footer)
+        expect(html).not.toContain('T.C. MİLLÎ EĞİTİM BAKANLIĞI');
+        expect(html).not.toContain('REHBERLİK VE PSİKOLOJİK DANIŞMA SERVİSİ');
+        expect(html).not.toContain('PDR Manager • Rehberlik');
+        expect(html).not.toContain('Rehberlik ve Psikolojik Danışma Hizmetleri Bilgi Sistemi');
+
+        if (survey.description) {
+          // Verify description is NOT placed under title in header
+          expect(html).not.toContain(`<p style="font-size: 8pt; color: #64748b; margin: 2px auto 0 auto; max-width: 650px;">${survey.description}</p>`);
+        }
+      }
+    });
+
+    it('2. Specific tests for Kime Göre Ben Neyim?, Rosenberg, PTL, BNA, and Sınav Kaygısı paper forms', async () => {
+      const { SurveyPaperFormPdfReport } = await import('../electron/services/surveys/reports/SurveyPaperFormPdfReport');
+
+      const kgbnDto: any = {
+        id: 'srv-kime-gore-ben-neyim',
+        slug: 'kime-gore-ben-neyim',
+        title: 'Kime Göre Ben Neyim?',
+        description: 'Öğrencinin kendisini nasıl algıladığı ve öğretmenleri, ailesi, arkadaşları gözünde nasıl algılandığını belirler.',
+        questions: Array.from({ length: 40 }, (_, i) => ({
+          id: `q-${i + 1}`,
+          orderIndex: i + 1,
+          questionText: i === 39 ? 'Diğer' : `Madde ${i + 1}`,
+          type: 'matrix'
+        }))
+      };
+
+      const kgbnHtml = SurveyPaperFormPdfReport.generateHtml(kgbnDto);
+      expect(kgbnHtml).toContain('Kime Göre Ben Neyim?');
+      expect(kgbnHtml).toContain('Öğretmenlerime');
+      expect(kgbnHtml).toContain('Bana');
+      expect(kgbnHtml).toContain('40. ..................................................... (Diğer)');
+      expect(kgbnHtml).toContain('* Varsa eklemek istediğiniz diğer özellikleri 40. satırdaki boşluğa yazıp işaretleyebilirsiniz.');
+      expect(kgbnHtml).not.toContain('T.C. MİLLÎ EĞİTİM BAKANLIĞI');
+      expect(kgbnHtml).not.toContain('Öğrencinin kendisini nasıl algıladığı');
+      expect(kgbnHtml).not.toContain('PDR Manager • Rehberlik');
+
+      const rosenbergDto: any = {
+        id: 'srv-rosenberg-benlik-saygisi',
+        slug: 'rosenberg-benlik-saygisi',
+        title: 'Rosenberg Benlik Saygısı Envanteri',
+        description: 'Benlik saygısı ve 11 alt boyutu değerlendirir.',
+        questions: [{ id: 'q-1', orderIndex: 1, questionText: 'Kendimi en az diğer insanlar kadar değerli buluyorum.', options: [{ id: 'opt-1', label: 'Çok doğru' }] }]
+      };
+
+      const rosenbergHtml = SurveyPaperFormPdfReport.generateHtml(rosenbergDto);
+      expect(rosenbergHtml).toContain('Rosenberg Benlik Saygısı Envanteri');
+      expect(rosenbergHtml).toContain('Yönerge:');
+      expect(rosenbergHtml).not.toContain('T.C. MİLLÎ EĞİTİM BAKANLIĞI');
+      expect(rosenbergHtml).not.toContain('Benlik saygısı ve 11 alt boyutu değerlendirir.');
+      expect(rosenbergHtml).not.toContain('PDR Manager • Rehberlik');
+    });
+  });
 });

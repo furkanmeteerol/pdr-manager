@@ -33,6 +33,8 @@ import { ReportsView } from './features/reports/ReportsView';
 import { DataTransferView } from './features/data_transfer/DataTransferView';
 
 import { HardDrive, ShieldCheck, KeyRound } from 'lucide-react';
+import { AutoUpdateCard } from './components/AutoUpdateCard';
+import { UpdateNotificationBanner } from './components/UpdateNotificationBanner';
 
 export const App: React.FC = () => {
   const { 
@@ -96,7 +98,12 @@ export const App: React.FC = () => {
       case 'settings':
         return (
           <div className="p-6 space-y-6 max-w-5xl mx-auto">
-            <h2 className="text-lg font-bold text-slate-800">Ayarlar, Güvenlik & Cihaz Yapılandırması</h2>
+            <h2 className="text-lg font-bold text-slate-800">Ayarlar, Güvenlik & Otomatik Güncelleme</h2>
+            
+            {/* Auto-Update Management Card */}
+            <AutoUpdateCard />
+
+            {/* Hardware, Security & Encryption Info */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-xs">
               <div className="flex items-center gap-3 pt-1">
                 <div className="p-2.5 rounded-xl bg-slate-100 text-slate-700">
@@ -149,6 +156,7 @@ export const App: React.FC = () => {
     <div className="flex h-screen bg-[#f4f6f9] text-slate-800 overflow-hidden font-['Plus_Jakarta_Sans',sans-serif]">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <UpdateNotificationBanner />
         <TopBar />
         <main className="flex-1 overflow-y-auto bg-[#f4f6f9]">
           {renderContent()}

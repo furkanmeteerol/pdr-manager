@@ -44,13 +44,9 @@ export class DevamsizlikNedenleriPdfReport {
       month: '2-digit',
       year: 'numeric'
     });
-    const formattedTime = new Date(application.completedAt).toLocaleTimeString('tr-TR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-
-    const schoolName = schoolInfo?.schoolName || 'Cumhuriyet Anadolu Lisesi';
-    const counselorName = schoolInfo?.counselorName || 'Psikolojik Danışman / Rehber Öğretmen';
+    const counselorName = (schoolInfo?.counselorName && schoolInfo.counselorName !== 'Psikolojik Danışman / Rehber Öğretmen')
+      ? schoolInfo.counselorName
+      : 'Psk. Dan. İzel Eriştiren';
 
     const subscaleRowsHtml = subscales.map((sub, idx) => {
       const avgScore = sub.averageScore ?? (sub.questionCount && sub.questionCount > 0 ? Number((sub.score / sub.questionCount).toFixed(2)) : sub.score);
@@ -90,7 +86,7 @@ export class DevamsizlikNedenleriPdfReport {
   <style>
     @page {
       size: A4 portrait;
-      margin: 12mm 15mm;
+      margin: 8mm 10mm;
     }
     * {
       box-sizing: border-box;
@@ -98,10 +94,10 @@ export class DevamsizlikNedenleriPdfReport {
       print-color-adjust: exact !important;
     }
     body {
-      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
-      font-size: 11.5px;
-      line-height: 1.4;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 9.5px;
       color: #0f172a;
+      line-height: 1.35;
       background: #ffffff;
       margin: 0;
       padding: 0;
@@ -112,126 +108,81 @@ export class DevamsizlikNedenleriPdfReport {
     }
     .header-block {
       text-align: center;
-      border-bottom: 2.5px solid #1e293b;
-      padding-bottom: 8px;
-      margin-bottom: 12px;
-    }
-    .header-gov {
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      color: #0f172a;
-      line-height: 1.25;
-    }
-    .header-school {
-      font-size: 14px;
-      font-weight: 700;
-      color: #1e293b;
-      margin-top: 2px;
-    }
-    .header-service {
-      font-size: 11px;
-      font-weight: 600;
-      color: #475569;
-      margin-top: 1px;
-    }
-    .header-title-box {
-      display: inline-block;
-      margin-top: 8px;
-      padding: 5px 16px;
-      background: #f1f5f9;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
     }
     .header-title {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 900;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
+      letter-spacing: 0.5px;
       color: #0f172a;
-      margin: 0;
-    }
-    .header-subtitle {
-      font-size: 11px;
-      font-weight: 700;
-      color: #3b82f6;
-      margin: 2px 0 0 0;
+      margin: 2px 0;
     }
     .info-card {
       border: 1px solid #cbd5e1;
       border-radius: 6px;
-      background: #fafafa;
-      margin-bottom: 10px;
+      background: #f8fafc;
+      margin-bottom: 8px;
       overflow: hidden;
-    }
-    .info-card-header {
-      background: #f1f5f9;
-      border-bottom: 1px solid #cbd5e1;
-      padding: 4px 10px;
-      font-size: 10.5px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
-      color: #334155;
     }
     .info-table {
       width: 100%;
       border-collapse: collapse;
     }
     .info-table td {
-      padding: 5px 10px;
-      font-size: 11px;
+      padding: 4px 8px;
+      font-size: 9px;
       border-bottom: 1px solid #f1f5f9;
       vertical-align: middle;
     }
     .info-table td.label {
       width: 18%;
-      color: #64748b;
-      font-weight: 600;
+      color: #475569;
+      font-weight: 700;
       background: #f8fafc;
-      border-right: 1px solid #e2e8f0;
     }
     .info-table td.value {
       width: 32%;
       color: #0f172a;
-      font-weight: 700;
+      font-weight: 600;
     }
     .notice-box {
-      border-left: 4px solid #3b82f6;
+      border-left: 3px solid #3b82f6;
       background: #eff6ff;
       border-top: 1px solid #dbeafe;
       border-right: 1px solid #dbeafe;
       border-bottom: 1px solid #dbeafe;
-      border-radius: 0 6px 6px 0;
-      padding: 6px 10px;
-      margin-bottom: 10px;
-      font-size: 10.5px;
-      color: #1e3a8a;
+      border-radius: 0 4px 4px 0;
+      padding: 5px 8px;
+      margin-bottom: 8px;
+      font-size: 8.5px;
+      color: #1e40af;
       line-height: 1.35;
     }
     .notice-box strong {
       color: #1d4ed8;
     }
     .highlight-card {
-      border: 1.5px solid #93c5fd;
-      background: #f0fdf4;
-      background: linear-gradient(to right, #eff6ff, #f8fafc);
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
       border-radius: 6px;
-      padding: 7px 12px;
-      margin-bottom: 10px;
+      padding: 6px 10px;
+      margin-bottom: 8px;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
     .highlight-label {
-      font-size: 11px;
+      font-size: 9.5px;
       font-weight: 800;
       color: #1e40af;
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
     .highlight-value {
-      font-size: 12px;
+      font-size: 10.5px;
       font-weight: 800;
       color: #0f172a;
     }
@@ -241,21 +192,21 @@ export class DevamsizlikNedenleriPdfReport {
       border: 1px solid #cbd5e1;
       border-radius: 6px;
       overflow: hidden;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
     .results-table th {
       background: #f1f5f9;
       border-bottom: 1.5px solid #cbd5e1;
-      padding: 6px 8px;
-      font-size: 10.5px;
+      padding: 5px 6px;
+      font-size: 9px;
       font-weight: 800;
       color: #334155;
       text-align: left;
     }
     .results-table td {
       border-bottom: 1px solid #e2e8f0;
-      padding: 6px 8px;
-      font-size: 11px;
+      padding: 4px 6px;
+      font-size: 9px;
       vertical-align: middle;
     }
     .results-table tr.highlight-row {
@@ -265,9 +216,9 @@ export class DevamsizlikNedenleriPdfReport {
       display: inline-block;
       background: #2563eb;
       color: #ffffff;
-      font-size: 9.5px;
+      font-size: 8.5px;
       font-weight: 800;
-      padding: 2px 6px;
+      padding: 1px 5px;
       border-radius: 4px;
       text-transform: uppercase;
       letter-spacing: 0.3px;
@@ -276,83 +227,40 @@ export class DevamsizlikNedenleriPdfReport {
       width: 100%;
       background: #e2e8f0;
       border-radius: 999px;
-      height: 7px;
+      height: 6px;
       overflow: hidden;
     }
     .score-bar-fill {
-      height: 7px;
+      height: 6px;
       background: #64748b;
       border-radius: 999px;
     }
     .score-bar-highest {
       background: #2563eb;
     }
-    .signatures-box {
-      margin-top: 18px;
-      padding-top: 10px;
-      border-top: 1px dashed #cbd5e1;
-      display: flex;
-      justify-content: space-between;
-      page-break-inside: avoid;
-    }
-    .sig-block {
-      width: 45%;
-      text-align: center;
-      font-size: 10.5px;
-    }
-    .sig-role {
-      font-weight: 800;
-      color: #334155;
-      margin-bottom: 2px;
-    }
-    .sig-name {
-      color: #0f172a;
-      font-weight: 600;
-      margin-bottom: 30px;
-    }
-    .sig-line {
-      border-top: 1px solid #94a3b8;
-      width: 70%;
-      margin: 0 auto;
-      padding-top: 3px;
-      font-size: 9.5px;
-      color: #64748b;
-    }
   </style>
 </head>
 <body>
   <div class="report-container">
-    <!-- 1. Header -->
+    <!-- 1. Clean Header -->
     <div class="header-block">
-      ${schoolName ? `<div class="header-school">${DevamsizlikNedenleriPdfReport.escapeHtml(schoolName)}</div>` : ''}
-      <div class="header-service">Rehberlik ve Psikolojik Danışma Servisi</div>
-      <div class="header-title-box">
-        <h1 class="header-title">DEVAMSIZLIK NEDENLERİ ANKETİ</h1>
-        <div class="header-subtitle">Öğrenci Değerlendirme Sonuç Raporu</div>
-      </div>
+      <h1 class="header-title">DEVAMSIZLIK NEDENLERİ ANKETİ</h1>
     </div>
 
     <!-- 2. Student & Application Information Table -->
     <div class="info-card">
-      <div class="info-card-header">Öğrenci ve Uygulama Bilgileri</div>
       <table class="info-table">
         <tr>
           <td class="label">Öğrenci Adı Soyadı:</td>
           <td class="value">${DevamsizlikNedenleriPdfReport.escapeHtml(application.studentName)}</td>
-          <td class="label">Uygulanan Anket:</td>
-          <td class="value">${DevamsizlikNedenleriPdfReport.escapeHtml(application.surveyTitle)}</td>
+          <td class="label">Uygulama Tarihi:</td>
+          <td class="value">${formattedDate}</td>
         </tr>
         <tr>
           <td class="label">Okul Numarası:</td>
           <td class="value">${DevamsizlikNedenleriPdfReport.escapeHtml(application.studentNumber)}</td>
-          <td class="label">Uygulama Numarası:</td>
-          <td class="value">Uygulama #${application.attemptNumber}</td>
-        </tr>
-        <tr>
           <td class="label">Sınıfı / Şubesi:</td>
           <td class="value">${DevamsizlikNedenleriPdfReport.escapeHtml(application.className || '—')}</td>
-          <td class="label">Uygulama Tarihi:</td>
-          <td class="value">${formattedDate} ${formattedTime}</td>
         </tr>
       </table>
     </div>
@@ -368,7 +276,7 @@ export class DevamsizlikNedenleriPdfReport {
         <span class="highlight-label">En Belirgin Alan:</span>
         <span class="highlight-value" style="margin-left: 8px;">${DevamsizlikNedenleriPdfReport.escapeHtml(highestSubscalesText)}</span>
       </div>
-      <div style="font-size: 10px; color: #64748b; font-weight: 600;">
+      <div style="font-size: 9px; color: #64748b; font-weight: 600;">
         (En yüksek ortalama puana sahip alt boyut)
       </div>
     </div>
@@ -379,11 +287,11 @@ export class DevamsizlikNedenleriPdfReport {
         <tr>
           <th style="width: 25px; text-align: center;">#</th>
           <th>Alt Boyut</th>
-          <th style="width: 90px; text-align: center;">Madde Aralığı</th>
-          <th style="width: 75px; text-align: center;">Soru Sayısı</th>
-          <th style="width: 100px; text-align: right;">Ortalama Puan</th>
-          <th style="width: 130px; text-align: center;">Puan Dağılımı</th>
-          <th style="width: 110px; text-align: center;">Değerlendirme</th>
+          <th style="width: 80px; text-align: center;">Madde Aralığı</th>
+          <th style="width: 65px; text-align: center;">Soru Sayısı</th>
+          <th style="width: 85px; text-align: right;">Ortalama Puan</th>
+          <th style="width: 110px; text-align: center;">Puan Dağılımı</th>
+          <th style="width: 95px; text-align: center;">Değerlendirme</th>
         </tr>
       </thead>
       <tbody>
@@ -391,19 +299,14 @@ export class DevamsizlikNedenleriPdfReport {
       </tbody>
     </table>
 
-    <!-- 6. Formal Signature Block -->
-    <div class="signatures-box">
-      <div class="sig-block">
-        <div class="sig-role">Öğrenci</div>
-        <div class="sig-name">${DevamsizlikNedenleriPdfReport.escapeHtml(application.studentName)}</div>
-        <div class="sig-line">İmza</div>
-      </div>
-      <div class="sig-block">
-        <div class="sig-role">Psikolojik Danışman / Rehber Öğretmen</div>
-        <div class="sig-name">${DevamsizlikNedenleriPdfReport.escapeHtml(counselorName)}</div>
-        <div class="sig-line">İmza / Mühür</div>
-      </div>
-    </div>
+    <!-- 6. Clean Footer Signature -->
+    <table style="width: 100%; margin-top: 10px; border-top: 1px solid #cbd5e1; padding-top: 6px; font-size: 8.5px;">
+      <tr>
+        <td style="width: 100%; text-align: right; vertical-align: top;">
+          <div style="font-weight: 800; color: #0f172a;">${DevamsizlikNedenleriPdfReport.escapeHtml(counselorName)}</div>
+        </td>
+      </tr>
+    </table>
   </div>
 </body>
 </html>

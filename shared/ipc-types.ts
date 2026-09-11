@@ -51,6 +51,9 @@ export interface ClassDto {
   teacherName?: string;
   pdfPath?: string;
   pdfName?: string;
+  pdfUploadedAt?: number;
+  pdfUploadDate?: string;
+  pdfUploadTime?: string;
   maleCount?: number;
   femaleCount?: number;
   totalCount?: number;
@@ -59,11 +62,13 @@ export interface ClassDto {
 export interface CounselingActivityDto {
   id: string;
   schoolYearId: string;
+  type?: 'activity' | 'meeting';
   title: string;
   description?: string;
   classIds: string[];
   classNames: string;
   activityDate: string;
+  activityTime?: string;
   participantCount: number;
   notes?: string;
   version: number;
@@ -990,6 +995,10 @@ export interface ElectronApi {
     getDeviceId: () => Promise<string>;
     getDashboardSummary: () => Promise<DashboardSummary>;
   };
+  water?: {
+    getTodayCount: () => Promise<number>;
+    setTodayCount: (count: number) => Promise<number>;
+  };
   sync: {
     getStatus: () => Promise<SyncStatus>;
     triggerSync: () => Promise<FullSyncResult>;
@@ -1008,7 +1017,7 @@ export interface ElectronApi {
   },
   activities: {
     list: (schoolYearId?: string) => Promise<CounselingActivityDto[]>;
-    create: (data: { schoolYearId: string; title: string; description?: string; classIds: string[]; classNames: string; activityDate: string; notes?: string }) => Promise<CounselingActivityDto>;
+    create: (data: { schoolYearId: string; type?: 'activity' | 'meeting'; title: string; description?: string; classIds?: string[]; classNames?: string; activityDate: string; activityTime?: string; participantCount?: number; notes?: string }) => Promise<CounselingActivityDto>;
     update: (id: string, data: Partial<CounselingActivityDto>) => Promise<CounselingActivityDto>;
     delete: (id: string) => Promise<boolean>;
   },
@@ -1225,6 +1234,8 @@ export interface ElectronApi {
     importOfflineResult: (encryptedPayload: string, passphrase?: string) => Promise<{ success: boolean; studentMatched?: boolean; studentName?: string; studentNumber?: string; totalScore?: number; error?: string }>;
     exportPdfReport: (applicationId: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
     getReportHtml: (applicationId: string) => Promise<{ success: boolean; html?: string; error?: string }>;
+    exportPaperFormPdf: (surveySlugOrId: string) => Promise<{ success: boolean; filePath?: string; canceled?: boolean; error?: string }>;
+    getPaperFormHtml: (surveySlugOrId: string) => Promise<{ success: boolean; html?: string; error?: string }>;
   };
   dataTransfer: {
     exportPackage: (password?: string) => Promise<{ success: boolean; filePath?: string; manifest?: any; canceled?: boolean; error?: string }>;
@@ -1382,6 +1393,49 @@ export interface ElectronApi {
     listReferralsByStudent: (studentId: string) => Promise<RamReferralDto[]>;
     listAllReferrals: () => Promise<RamReferralDto[]>;
   };
+  updater: {
+    getStatus: () => Promise<UpdateStatus>;
+    checkForUpdates: () => Promise<UpdateStatus>;
+    downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
+    quitAndInstall: () => Promise<{ success: boolean; error?: string }>;
+    onStatusChange: (callback: (status: UpdateStatus) => void) => () => void;
+    onDownloadProgress: (callback: (progress: UpdateProgress) => void) => () => void;
+  };
+}
+
+export type UpdateStateType = 
+  | 'idle' 
+  | 'checking' 
+  | 'available' 
+  | 'not-available' 
+  | 'downloading' 
+  | 'downloaded' 
+  | 'error' 
+  | 'dev-mode';
+
+export interface UpdateProgress {
+  percent: number;
+  bytesPerSecond: number;
+  transferred: number;
+  total: number;
+}
+
+export interface UpdateInfoPayload {
+  version: string;
+  releaseDate?: string;
+  releaseNotes?: string | string[];
+}
+
+export interface UpdateStatus {
+  state: UpdateStateType;
+  currentVersion: string;
+  availableVersion: string | null;
+  releaseDate: string | null;
+  releaseNotes: string | null;
+  progress: UpdateProgress | null;
+  errorMessage: string | null;
+  feedUrl: string;
+  checkedAt: number | null;
 }
 
 declare global {
@@ -1389,4 +1443,5 @@ declare global {
     api: ElectronApi;
   }
 }
+
 

@@ -56,6 +56,9 @@ export const classes = sqliteTable('classes', {
   teacherName: text('teacher_name'),
   pdfPath: text('pdf_path'),
   pdfName: text('pdf_name'),
+  pdfUploadedAt: integer('pdf_uploaded_at'),
+  pdfUploadDate: text('pdf_upload_date'),
+  pdfUploadTime: text('pdf_upload_time'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
   deletedAt: integer('deleted_at'),
@@ -729,11 +732,13 @@ export const auditLogs = sqliteTable('audit_logs', {
 export const counselingActivities = sqliteTable('counseling_activities', {
   id: text('id').primaryKey(),
   schoolYearId: text('school_year_id').notNull().references(() => schoolYears.id),
+  type: text('type').notNull().default('activity'), // 'activity' | 'meeting'
   title: text('title').notNull(),
   description: text('description'),
   classIds: text('class_ids').notNull(), // JSON string array e.g. ["class-1", "class-2"]
   classNames: text('class_names').notNull(), // e.g. "9-A, 9-B"
   activityDate: text('activity_date').notNull(),
+  activityTime: text('activity_time'), // 'HH:mm' e.g. "14:30"
   participantCount: integer('participant_count').notNull().default(0),
   notes: text('notes'),
   createdAt: integer('created_at').notNull(),

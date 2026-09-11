@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   X, 
   Award, 
-  Printer, 
   Download,
   Calendar, 
   User,
@@ -62,15 +61,11 @@ export const SurveyResultDetailModal: React.FC<SurveyResultDetailModalProps> = (
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <>
       {/* Interactive Modal (Visible on Screen, Hidden on Print) */}
       <ModalPortal>
-        <div className="fixed inset-0 z-[1010] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150 print:hidden">
+        <div className="fixed inset-0 z-[1200] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150 print:hidden">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
             {/* Header */}
             <div className="p-5 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
@@ -85,9 +80,6 @@ export const SurveyResultDetailModal: React.FC<SurveyResultDetailModalProps> = (
                     </h3>
                     <span className="px-2.5 py-0.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 font-bold text-[11px]">
                       Uygulama #{application.attemptNumber}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 border border-blue-100 font-semibold text-[11px]">
-                      v{application.surveyVersionNumber}
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2.5 mt-1 text-xs text-slate-500 font-medium">
@@ -133,14 +125,6 @@ export const SurveyResultDetailModal: React.FC<SurveyResultDetailModalProps> = (
 
                 <button
                   type="button"
-                  onClick={handlePrint}
-                  className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                  title="Yazdır"
-                >
-                  <Printer className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
                   onClick={onClose}
                   className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                 >
@@ -160,7 +144,15 @@ export const SurveyResultDetailModal: React.FC<SurveyResultDetailModalProps> = (
             {/* Footer */}
             <div className="p-3.5 border-t border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div className="text-[11px] text-slate-400 font-medium">
-                * 52. soru ve diğer nedenler yalnızca ekranınızda görüntülenir, resmî PDF çıktısında yer almaz.
+                {application.surveySlug === 'sinav-kaygisi-olcegi' || application.surveyId === 'srv-sinav-kaygisi-olcegi'
+                  ? '* Sınav Kaygısı Ölçeği 50 maddeden oluşur. Sonuç ve alt boyut dağılımı resmî değerlendirme esaslarına göre hesaplanmıştır.'
+                  : (application.surveySlug === 'basarisizlik-nedenleri-anketi' || application.surveyId === 'srv-basarisizlik-nedenleri-anketi')
+                  ? '* Başarısızlık Nedenleri Anketi 44 maddeden oluşur. Belirtilen nedenler öğrencinin kendi beyanına dayanmaktadır.'
+                  : (application.surveySlug === 'otomatik-dusunceler-olcegi' || application.surveyId === 'srv-otomatik-dusunceler-olcegi')
+                  ? '* Otomatik Düşünceler Ölçeği 30 maddeden oluşur. Puan aralığı 30-150 arasındadır.'
+                  : (application.surveySlug === 'burdon-dikkat-testi' || application.surveyId === 'srv-burdon-dikkat-testi')
+                  ? '* Burdon Dikkat Testi sonuçları otomatik olarak hesaplanmıştır.'
+                  : ''}
               </div>
               <button
                 type="button"

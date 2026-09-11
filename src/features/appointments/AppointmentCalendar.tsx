@@ -86,37 +86,37 @@ export const AppointmentCalendar: React.FC = () => {
     switch (status) {
       case 'completed':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 leading-snug break-words whitespace-normal text-center">
+            <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
             <span>TAMAMLANDI</span>
           </span>
         );
       case 'student_absent':
       case 'no_show':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-            <AlertCircle className="w-3 h-3 text-rose-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 leading-snug break-words whitespace-normal text-center">
+            <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />
             <span>ÖĞRENCİ GELMEDİ</span>
           </span>
         );
       case 'other':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-            <HelpCircle className="w-3 h-3 text-purple-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 leading-snug break-words whitespace-normal text-center">
+            <HelpCircle className="w-3 h-3 text-purple-600 shrink-0" />
             <span>DİĞER</span>
           </span>
         );
       case 'cancelled':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-            <XCircle className="w-3 h-3 text-slate-500" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 leading-snug break-words whitespace-normal text-center">
+            <XCircle className="w-3 h-3 text-slate-500 shrink-0" />
             <span>İPTAL</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-            <Clock className="w-3 h-3 text-amber-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 leading-snug break-words whitespace-normal text-center">
+            <Clock className="w-3 h-3 text-amber-600 shrink-0" />
             <span>BEKLİYOR</span>
           </span>
         );
@@ -185,7 +185,7 @@ export const AppointmentCalendar: React.FC = () => {
                 <th className="w-12 text-center">SIRA</th>
                 <th>AD SOYAD</th>
                 <th className="w-24">NUMARA</th>
-                <th className="w-20">SINIF</th>
+                <th className="w-28">SINIF</th>
                 <th className="w-28">TARİH</th>
                 <th className="w-20">SAAT</th>
                 <th>RANDEVU KONUSU</th>
@@ -209,8 +209,8 @@ export const AppointmentCalendar: React.FC = () => {
 
                   return (
                     <tr key={app.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="text-center font-medium text-slate-400 text-xs">{idx + 1}</td>
-                      <td>
+                      <td className="text-center font-medium text-slate-400 text-xs py-2.5">{idx + 1}</td>
+                      <td className="py-2.5">
                         {isGroup ? (
                           <div>
                             <div className="font-extrabold text-blue-900 text-xs">
@@ -228,23 +228,23 @@ export const AppointmentCalendar: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td className="font-mono text-xs text-slate-600">
+                      <td className="font-mono text-xs text-slate-600 py-2.5">
                         {isGroup ? 'Çoklu' : (student?.studentNumber || '—')}
                       </td>
-                      <td>
-                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[11px] border border-slate-200">
+                      <td className="py-2.5">
+                        <span className="inline-block px-2 py-1 rounded-md bg-slate-100 text-slate-700 font-semibold text-[11px] border border-slate-200 leading-snug break-words whitespace-normal max-w-[130px]">
                           {isGroup ? 'Çoklu Sınıf' : (student ? (student as any).className || '—' : '—')}
                         </span>
                       </td>
-                      <td className="font-mono text-xs text-slate-700">
+                      <td className="font-mono text-xs text-slate-700 py-2.5">
                         {new Date(app.date).toLocaleDateString('tr-TR')}
                       </td>
-                      <td className="font-mono text-xs text-slate-700 font-semibold">{app.startTime}</td>
-                      <td className="text-slate-600 text-xs max-w-xs truncate" title={app.title}>
+                      <td className="font-mono text-xs text-slate-700 font-semibold py-2.5">{app.startTime}</td>
+                      <td className="text-slate-600 text-xs max-w-xs truncate py-2.5" title={app.title}>
                         {app.title}
                       </td>
-                      <td className="text-center">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                      <td className="text-center py-2.5">
+                        <span className={`inline-block px-2 py-1 rounded-md text-[11px] font-semibold leading-snug break-words whitespace-normal ${
                           remaining === 'Geçti' 
                             ? 'bg-slate-100 text-slate-500' 
                             : remaining === 'Bugün' 
@@ -254,10 +254,10 @@ export const AppointmentCalendar: React.FC = () => {
                           {remaining}
                         </span>
                       </td>
-                      <td className="text-center">
+                      <td className="text-center py-2.5">
                         {getStatusBadge(app.status)}
                       </td>
-                      <td className="text-center">
+                      <td className="text-center py-2.5">
                         <div className="flex items-center justify-center gap-1.5">
                           {/* ⓘ Detay Butonu */}
                           <button

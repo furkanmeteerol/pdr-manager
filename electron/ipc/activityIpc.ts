@@ -31,11 +31,13 @@ export function registerActivityIpc(databaseService: DatabaseService) {
       return {
         id: r.id,
         schoolYearId: r.schoolYearId,
+        type: (r.type as 'activity' | 'meeting') || 'activity',
         title: r.title,
         description: r.description || undefined,
         classIds,
         classNames: r.classNames,
         activityDate: r.activityDate,
+        activityTime: r.activityTime || undefined,
         participantCount: r.participantCount,
         notes: r.notes || undefined,
         version: r.version,
@@ -47,25 +49,30 @@ export function registerActivityIpc(databaseService: DatabaseService) {
 
   ipcMain.handle('activities:create', async (_event, data: {
     schoolYearId: string;
+    type?: 'activity' | 'meeting';
     title: string;
     description?: string;
-    classIds: string[];
-    classNames: string;
+    classIds?: string[];
+    classNames?: string;
     activityDate: string;
+    activityTime?: string;
     participantCount?: number;
     notes?: string;
   }): Promise<CounselingActivityDto> => {
     const now = Date.now();
     const id = crypto.randomUUID();
+    const type = data.type === 'meeting' ? 'meeting' : 'activity';
 
     const newRecord = {
       id,
       schoolYearId: data.schoolYearId || 'default-year',
+      type,
       title: data.title.trim(),
       description: data.description ? data.description.trim() : null,
       classIds: JSON.stringify(data.classIds || []),
       classNames: data.classNames || '',
       activityDate: data.activityDate || new Date().toISOString().split('T')[0],
+      activityTime: data.activityTime ? data.activityTime.trim() : null,
       participantCount: Number(data.participantCount || 0),
       notes: data.notes ? data.notes.trim() : null,
       createdAt: now,
@@ -76,16 +83,18 @@ export function registerActivityIpc(databaseService: DatabaseService) {
     };
 
     db.insert(schema.counselingActivities).values(newRecord).run();
-    logger.info(`Created counseling activity: ${newRecord.title} (${id})`);
+    logger.info(`Created counseling activity [${type}]: ${newRecord.title} (${id})`);
 
     return {
       id: newRecord.id,
       schoolYearId: newRecord.schoolYearId,
+      type: newRecord.type as 'activity' | 'meeting',
       title: newRecord.title,
       description: newRecord.description || undefined,
       classIds: data.classIds || [],
       classNames: newRecord.classNames,
       activityDate: newRecord.activityDate,
+      activityTime: newRecord.activityTime || undefined,
       participantCount: newRecord.participantCount,
       notes: newRecord.notes || undefined,
       version: 1,
@@ -105,11 +114,13 @@ export function registerActivityIpc(databaseService: DatabaseService) {
       lastModifiedDeviceId: deviceId
     };
 
+    if (data.type !== undefined) updateValues.type = data.type;
     if (data.title !== undefined) updateValues.title = data.title.trim();
     if (data.description !== undefined) updateValues.description = data.description ? data.description.trim() : null;
     if (data.classIds !== undefined) updateValues.classIds = JSON.stringify(data.classIds);
     if (data.classNames !== undefined) updateValues.classNames = data.classNames;
     if (data.activityDate !== undefined) updateValues.activityDate = data.activityDate;
+    if (data.activityTime !== undefined) updateValues.activityTime = data.activityTime ? data.activityTime.trim() : null;
     if (data.participantCount !== undefined) updateValues.participantCount = Number(data.participantCount);
     if (data.notes !== undefined) updateValues.notes = data.notes ? data.notes.trim() : null;
 
@@ -122,11 +133,13 @@ export function registerActivityIpc(databaseService: DatabaseService) {
     return {
       id: updated.id,
       schoolYearId: updated.schoolYearId,
+      type: (updated.type as 'activity' | 'meeting') || 'activity',
       title: updated.title,
       description: updated.description || undefined,
       classIds,
       classNames: updated.classNames,
       activityDate: updated.activityDate,
+      activityTime: updated.activityTime || undefined,
       participantCount: updated.participantCount,
       notes: updated.notes || undefined,
       version: updated.version,

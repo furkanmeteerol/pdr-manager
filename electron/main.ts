@@ -26,6 +26,8 @@ import { DailyNoteService } from './services/daily_notes/DailyNoteService';
 import { AgendaService } from './services/agenda/AgendaService';
 import { CounselorDocumentService } from './services/documents/CounselorDocumentService';
 import { PresentationService } from './services/presentations/PresentationService';
+import { AppointmentScheduler } from './services/notifications/AppointmentScheduler';
+import { UpdateService } from './services/updater/UpdateService';
 import { loadEnvironmentVariables } from './services/security/EnvLoader';
 import { registerAllIpcHandlers } from './ipc';
 
@@ -159,11 +161,19 @@ app.whenReady().then(async () => {
   const { db } = databaseService.init(userDataPath);
   const deviceId = databaseService.ensureDeviceId();
 
+  const appointmentScheduler = new AppointmentScheduler(db, () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+  appointmentScheduler.init();
+
   const syncEngine = new SyncEngine(db, deviceId);
   const authService = new AuthService(databaseService, userDataPath);
   const studentService = new StudentService(db, deviceId, syncEngine);
   const meetingService = new MeetingService(db, deviceId, syncEngine);
-  const appointmentService = new AppointmentService(db, deviceId, syncEngine);
+  const appointmentService = new AppointmentService(db, deviceId, syncEngine, appointmentScheduler);
   const taskService = new TaskService(db, deviceId, syncEngine);
   const searchService = new SearchService(db);
   const dashboardService = new DashboardService(db, meetingService, appointmentService, taskService);
@@ -181,8 +191,10 @@ app.whenReady().then(async () => {
   const agendaService = new AgendaService(db, deviceId, syncEngine);
   const counselorDocumentService = new CounselorDocumentService(db, deviceId, syncEngine, userDataPath);
   const presentationService = new PresentationService(db, deviceId, syncEngine, userDataPath);
+  const updateService = new UpdateService(() => mainWindow);
+  updateService.init();
 
-  // Register Whitelisted IPC (V1 + V2 + V3)
+  // Register Whitelisted IPC (V1 + V2 + V3 + Data Transfer + Updater)
   registerAllIpcHandlers(
     authService,
     databaseService,
@@ -205,7 +217,8 @@ app.whenReady().then(async () => {
     agendaService,
     counselorDocumentService,
     presentationService,
-    () => mainWindow
+    () => mainWindow,
+    updateService
   );
 
   createWindow();

@@ -86,7 +86,7 @@ describe('PDR Manager — Security Gate, Lock Screen Privacy, Global Modal Overl
     for (const f of modalFiles) {
       const content = fs.readFileSync(f, 'utf-8');
       expect(content).toContain('ModalPortal');
-      expect(content).toMatch(/z-\[(1000|1010)\]/);
+      expect(content).toMatch(/z-\[(1000|1010|1100|1200)\]/);
     }
   });
 

@@ -90,11 +90,20 @@ export const GenericSurveyResultRenderer: React.FC<SurveyResultRendererProps> = 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {subscales.map((sub, idx) => {
               const pct = sub.percentage ?? (sub.maxScore ? Math.round((sub.score / sub.maxScore) * 100) : 50);
+              const isSubHigh = sub.interpretation?.toLowerCase().includes('yüksek');
+              const isSubLow = sub.interpretation?.toLowerCase().includes('düşük');
+              const barColor = isSubHigh ? 'bg-rose-500' : isSubLow ? 'bg-emerald-500' : 'bg-blue-600';
+              const badgeClass = isSubHigh
+                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                : isSubLow
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-white text-slate-700 border-slate-200';
+
               return (
                 <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-slate-800 truncate">{sub.title}</span>
-                    <span className="font-mono font-bold text-blue-700 text-xs">
+                    <span className="font-mono font-bold text-slate-900 text-xs">
                       {sub.averageScore !== undefined ? `${sub.averageScore} ort.` : `${sub.score} ${sub.maxScore ? `/ ${sub.maxScore}` : 'puan'}`}
                     </span>
                   </div>
@@ -102,7 +111,7 @@ export const GenericSurveyResultRenderer: React.FC<SurveyResultRendererProps> = 
                   {/* Progress Bar */}
                   <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                     <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      className={`${barColor} h-2 rounded-full transition-all duration-300`}
                       style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
                     />
                   </div>
@@ -110,7 +119,7 @@ export const GenericSurveyResultRenderer: React.FC<SurveyResultRendererProps> = 
                   <div className="flex items-center justify-between text-[11px] text-slate-500">
                     <span>%{pct} Oran</span>
                     {sub.interpretation && (
-                      <span className="font-bold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      <span className={`font-bold px-2 py-0.5 rounded border text-[10px] ${badgeClass}`}>
                         {sub.interpretation}
                       </span>
                     )}

@@ -15,6 +15,7 @@ import {
   Edit2,
   Trash2,
   X,
+  Users2,
   Save
 } from 'lucide-react';
 import { MeetingDto, DailyNoteDto, AppointmentDto } from '@shared/ipc-types';
@@ -32,7 +33,9 @@ export const Dashboard: React.FC = () => {
     meetings, 
     appointments, 
     students, 
+    activities,
     status,
+    setActiveTab,
     fetchMeetings
   } = useAppStore();
 
@@ -46,6 +49,19 @@ export const Dashboard: React.FC = () => {
   const [selectedNoteDate, setSelectedNoteDate] = useState<string>(() => getLocalDateIso());
   const [dailyNotesList, setDailyNotesList] = useState<DailyNoteDto[]>([]);
   const [isLoadingNotes, setIsLoadingNotes] = useState<boolean>(false);
+
+  // Activities & Meetings summary stats
+  const totalActivitiesCount = useMemo(() => {
+    return activities.filter(a => (a.type || 'activity') === 'activity').length;
+  }, [activities]);
+
+  const totalMeetingsCount = useMemo(() => {
+    return activities.filter(a => a.type === 'meeting').length;
+  }, [activities]);
+
+  const totalIndividualMeetingsCount = useMemo(() => {
+    return meetings.length;
+  }, [meetings]);
 
   // Daily Note Modal state (Add / Edit)
   const [isNoteModalOpen, setIsNoteModalOpen] = useState<boolean>(false);
@@ -247,6 +263,61 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="p-5 space-y-6 max-w-7xl mx-auto">
+      {/* Overview Statistics Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div 
+          onClick={() => setActiveTab('meetings')}
+          className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3 cursor-pointer hover:border-blue-300 transition-all group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <MessagesSquare className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Görüşmeler</div>
+            <div className="text-xl font-black text-slate-800">{totalIndividualMeetingsCount}</div>
+          </div>
+        </div>
+
+        <div 
+          onClick={() => setActiveTab('appointments')}
+          className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3 cursor-pointer hover:border-emerald-300 transition-all group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <CalendarCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Randevular</div>
+            <div className="text-xl font-black text-slate-800">{appointments.length}</div>
+          </div>
+        </div>
+
+        <div 
+          onClick={() => setActiveTab('activities')}
+          className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3 cursor-pointer hover:border-sky-300 transition-all group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <ClipboardList className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Yapılan Çalışma</div>
+            <div className="text-xl font-black text-sky-700">{totalActivitiesCount}</div>
+          </div>
+        </div>
+
+        <div 
+          onClick={() => setActiveTab('activities')}
+          className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3 cursor-pointer hover:border-purple-300 transition-all group"
+        >
+          <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <Users2 className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Toplam Toplantı</div>
+            <div className="text-xl font-black text-purple-700">{totalMeetingsCount}</div>
+          </div>
+        </div>
+      </div>
+
       {/* 1. Top Section: Yapılan Görüşmeler */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {/* Header with Date Navigation */}
@@ -366,8 +437,8 @@ export const Dashboard: React.FC = () => {
                       title="Görüşme detayını ve raporunu görüntülemek için tıklayın"
                     >
                       <td className="text-center font-medium text-slate-400 text-xs">{idx + 1}</td>
-                      <td>
-                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[11px] border border-slate-200">
+                      <td className="py-2.5">
+                        <span className="inline-block px-2 py-1 rounded-md bg-slate-100 text-slate-700 font-semibold text-[11px] border border-slate-200 leading-snug break-words whitespace-normal max-w-[130px]">
                           {classDisplay}
                         </span>
                       </td>

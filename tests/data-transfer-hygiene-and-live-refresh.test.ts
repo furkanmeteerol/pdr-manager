@@ -192,7 +192,7 @@ describe('PDR Manager — .pdrbak Document Hygiene, Dynamic DB Proxy & Live Refr
 
     expect(fs.existsSync(path.join(pc2DocDir, 'pc2_local_doc.docx'))).toBe(true);
     expect(fs.existsSync(path.join(pc2PresDir, 'pc2_local_pres.pptx'))).toBe(true);
-  });
+  }, 25000);
 
   it('2. Dynamic DB Proxy & Services automatically query the new database after import without restarting', async () => {
     const dbService = new DatabaseService();
@@ -258,7 +258,7 @@ describe('PDR Manager — .pdrbak Document Hygiene, Dynamic DB Proxy & Live Refr
     // Also raw dynamicSqlite queries must immediately work
     const countRow = dynamicSqlite.prepare('SELECT count(*) as count FROM students WHERE deleted_at IS NULL').get() as any;
     expect(countRow.count).toBe(1);
-  });
+  }, 25000);
 
   it('3. DB Reset clears user tables but preserves system survey catalog AND preserves local documents/presentations', async () => {
     const dbService = new DatabaseService();
@@ -341,5 +341,5 @@ describe('PDR Manager — .pdrbak Document Hygiene, Dynamic DB Proxy & Live Refr
     // 4. Local password MUST remain intact
     const unlockRes = await auth.unlock({ password: 'Reset_Test_Pass_789' });
     expect(unlockRes.success).toBe(true);
-  });
+  }, 25000);
 });

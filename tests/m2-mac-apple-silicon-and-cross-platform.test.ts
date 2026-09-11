@@ -54,10 +54,10 @@ describe('PDR Manager — M2 MacBook Air (Apple Silicon) & Cross-Platform Verifi
     expect(fs.existsSync(expectedDbPath)).toBe(true);
     expect(macDbService.getDbPath()).toBe(expectedDbPath);
 
-    // Verify migrations up to v14 via app_meta db_schema_version
+    // Verify migrations up to v16 via app_meta db_schema_version
     const versionRow = sqlite.prepare("SELECT value FROM app_meta WHERE key = 'db_schema_version'").get() as any;
     expect(versionRow).toBeDefined();
-    expect(parseInt(versionRow.value, 10)).toBe(14);
+    expect(parseInt(versionRow.value, 10)).toBe(16);
 
     // Verify system survey catalog auto-seeded
     const surveyRow = sqlite.prepare("SELECT * FROM surveys WHERE slug = 'devamsizlik-nedenleri-anketi'").get() as any;

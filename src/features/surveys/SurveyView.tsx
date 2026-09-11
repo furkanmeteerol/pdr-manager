@@ -4,12 +4,15 @@ import {
   ClipboardList, 
   RefreshCw, 
   Printer, 
-  FileEdit 
+  FileEdit,
+  Info,
+  X
 } from 'lucide-react';
 import { SurveyDto } from '@shared/ipc-types';
 import { SurveyApplicationsModal } from './components/SurveyApplicationsModal';
 import { StudentSurveyFillingModal } from './components/StudentSurveyFillingModal';
 import { SurveyPrintModal } from './components/SurveyPrintModal';
+import { ModalPortal } from '../../components/ModalPortal';
 
 export const SurveyView: React.FC = () => {
   const [surveys, setSurveys] = useState<SurveyDto[]>([]);
@@ -22,6 +25,7 @@ export const SurveyView: React.FC = () => {
   const [isAllApplicationsOpen, setIsAllApplicationsOpen] = useState(false);
   const [selectedSurveyForFilling, setSelectedSurveyForFilling] = useState<SurveyDto | null>(null);
   const [selectedSurveyForPrint, setSelectedSurveyForPrint] = useState<SurveyDto | null>(null);
+  const [infoSurvey, setInfoSurvey] = useState<SurveyDto | null>(null);
 
   const loadSurveys = async () => {
     setIsLoading(true);
@@ -46,6 +50,17 @@ export const SurveyView: React.FC = () => {
     return () => window.removeEventListener('pdr:data-refreshed', handleGlobalRefresh);
   }, []);
 
+  // ESC listener for Info Modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && infoSurvey) {
+        setInfoSurvey(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [infoSurvey]);
+
   const filteredSurveys = useMemo(() => {
     return surveys.filter(s => {
       if (selectedType !== 'all' && s.type !== selectedType) return false;
@@ -67,17 +82,6 @@ export const SurveyView: React.FC = () => {
       SURVEY: surveys.filter(s => s.type === 'SURVEY').length
     };
   }, [surveys]);
-
-  const getRepeatPolicyLabel = (policy?: string) => {
-    switch (policy) {
-      case 'ONCE':
-        return 'Tek Seferlik';
-      case 'YEARLY':
-        return 'Yılda 1 Kez';
-      default:
-        return 'Sınırsız Tekrar';
-    }
-  };
 
   const getTypeLabel = (type?: string) => {
     switch (type) {
@@ -217,24 +221,22 @@ export const SurveyView: React.FC = () => {
                     <span className={`px-2.5 py-0.5 rounded-lg border font-bold text-[11px] ${getTypeColor(s.type)}`}>
                       {getTypeLabel(s.type)}
                     </span>
-
-                    <div className="flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-mono font-bold">
-                        v{s.currentVersionNumber || 1}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
-                        {getRepeatPolicyLabel(s.repeatPolicy)}
-                      </span>
-                    </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-sm font-extrabold text-slate-800 tracking-tight line-clamp-1">
+                  <div 
+                    onClick={() => setInfoSurvey(s)}
+                    className="group cursor-pointer rounded-xl -m-1.5 p-1.5 hover:bg-slate-50/80 transition-all"
+                    title="Açıklamanın tamamını görüntülemek için tıklayın"
+                  >
+                    <h3 className="text-sm font-extrabold text-slate-800 tracking-tight line-clamp-1 group-hover:text-blue-600 transition-colors">
                       {s.title}
                     </h3>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed line-clamp-2">
-                      {s.description || 'Standart psikolojik ölçme ve değerlendirme formu.'}
-                    </p>
+                    <div className="flex items-start gap-1.5 mt-1">
+                      <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 flex-1">
+                        {s.description || 'Standart psikolojik ölçme ve değerlendirme formu.'}
+                      </p>
+                      <Info className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-500 shrink-0 mt-0.5 transition-colors" />
+                    </div>
                   </div>
                 </div>
 
@@ -261,15 +263,15 @@ export const SurveyView: React.FC = () => {
                       <span>Yazdır</span>
                     </button>
 
-                    {/* Fill Survey / Manual Entry */}
+                    {/* Fill Survey / In-app Application */}
                     <button
                       type="button"
                       onClick={() => setSelectedSurveyForFilling(s)}
                       className="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all flex items-center gap-1 cursor-pointer"
-                      title="Kağıttan Cevapları Sisteme Gir"
+                      title="Öğrenci İçin Anket / Ölçek Uygula"
                     >
                       <FileEdit className="w-3.5 h-3.5" />
-                      <span>Uygulama Gir</span>
+                      <span>Uygulama Yap</span>
                     </button>
                   </div>
                 </div>
@@ -277,6 +279,99 @@ export const SurveyView: React.FC = () => {
             );
           })}
         </div>
+      )}
+
+      {/* Survey Full Description Info Modal */}
+      {infoSurvey && (
+        <ModalPortal>
+          <div 
+            className="fixed inset-0 z-[1000] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+            onClick={() => setInfoSurvey(null)}
+          >
+            <div 
+              className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="p-4 border-b border-slate-100 flex items-start justify-between gap-3 bg-slate-50/70">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-blue-50 text-blue-600 rounded-xl mt-0.5 shrink-0">
+                    <Info className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-2 py-0.5 rounded-md border font-bold text-[10px] ${getTypeColor(infoSurvey.type)}`}>
+                        {getTypeLabel(infoSurvey.type)}
+                      </span>
+                      {(infoSurvey as any).code && (
+                        <span className="text-[10px] font-mono font-bold text-slate-400">
+                          {(infoSurvey as any).code}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 leading-snug">
+                      {infoSurvey.title}
+                    </h3>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInfoSurvey(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-5 overflow-y-auto space-y-3">
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Ölçek / Envanter Açıklaması
+                </div>
+                <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50/50 p-3.5 rounded-xl border border-slate-100">
+                  {infoSurvey.description || 'Bu form için ayrıntılı açıklama bulunmamaktadır.'}
+                </p>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInfoSurvey(null)}
+                  className="px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+                >
+                  Kapat
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = infoSurvey;
+                      setInfoSurvey(null);
+                      setSelectedSurveyForPrint(target);
+                    }}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Yazdır</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = infoSurvey;
+                      setInfoSurvey(null);
+                      setSelectedSurveyForFilling(target);
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <FileEdit className="w-3.5 h-3.5" />
+                    <span>Uygulama Yap</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
       )}
 
       {/* Applications Modal (for single survey or all) */}
@@ -310,4 +405,5 @@ export const SurveyView: React.FC = () => {
 };
 
 export default SurveyView;
+
 

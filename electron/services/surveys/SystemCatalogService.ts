@@ -1,5 +1,19 @@
 import Database from 'better-sqlite3';
 import { DEVAMSIZLIK_NEDENLERI_ANKETI, RealSurveyDefinition } from './definitions/devamsizlikNedenleriAnketi';
+import { SINAV_KAYGISI_OLCEGI } from './definitions/sinavKaygisiOlcegi';
+import { WESTSIDE_SINAV_KAYGISI_OLCEGI } from './definitions/westsideSinavKaygisiOlcegi';
+import { HOLLAND_MESLEKI_TERCIH_ENVANTERI } from './definitions/hollandMeslekiTercihEnvanteri';
+import { HOLLAND_KISA_MESLEKI_TARAMA_ENVANTERI } from './definitions/hollandKisaMeslekiTarama';
+import { MESLEK_DEGERI_ENVANTERI } from './definitions/meslekDegeriEnvanteri';
+import { AKADEMIK_ERTELEME_OLCEGI } from './definitions/academicProcrastination';
+import { BURDON_DIKKAT_TESTI } from './definitions/burdonDikkatTesti';
+import { OTOMATIK_DUSUNCELER_OLCEGI } from './definitions/automaticThoughts';
+import { BASARISIZLIK_NEDENLERI_ANKETI } from './definitions/basarisizlikNedenleriAnketi';
+import { CALISMA_DAVRANISINI_DEGERLENDIRME_OLCEGI } from './definitions/calismaDavranisi';
+import { PROBLEM_TARAMA_LISTESI } from './definitions/problemTaramaListesi';
+import { ROSENBERG_BENLIK_SAYGISI } from './definitions/rosenbergBenlikSaygisi';
+import { KIME_GORE_BEN_NEYIM } from './definitions/kimeGoreBenNeyim';
+import { AKADEMIK_BENLIK_ALGISI_OLCEGI } from './definitions/akademikBenlikAlgisi';
 import { logger } from '../logger/Logger';
 
 /**
@@ -7,10 +21,31 @@ import { logger } from '../logger/Logger';
  * Extensible for all standard MEB surveys, scales, and psychological counseling inventories.
  */
 export const SYSTEM_CATALOG_REGISTRY: RealSurveyDefinition[] = [
-  DEVAMSIZLIK_NEDENLERI_ANKETI
+  DEVAMSIZLIK_NEDENLERI_ANKETI,
+  SINAV_KAYGISI_OLCEGI,
+  WESTSIDE_SINAV_KAYGISI_OLCEGI,
+  HOLLAND_MESLEKI_TERCIH_ENVANTERI,
+  HOLLAND_KISA_MESLEKI_TARAMA_ENVANTERI,
+  MESLEK_DEGERI_ENVANTERI,
+  AKADEMIK_ERTELEME_OLCEGI,
+  BURDON_DIKKAT_TESTI,
+  OTOMATIK_DUSUNCELER_OLCEGI,
+  BASARISIZLIK_NEDENLERI_ANKETI,
+  CALISMA_DAVRANISINI_DEGERLENDIRME_OLCEGI,
+  PROBLEM_TARAMA_LISTESI,
+  ROSENBERG_BENLIK_SAYGISI,
+  KIME_GORE_BEN_NEYIM,
+  AKADEMIK_BENLIK_ALGISI_OLCEGI
 ];
 
 export class SystemCatalogService {
+  /**
+   * Returns all registered built-in official survey definitions.
+   */
+  public static getBuiltinSurveys(): RealSurveyDefinition[] {
+    return SYSTEM_CATALOG_REGISTRY;
+  }
+
   /**
    * Seeds or updates all official system catalog surveys into SQLite database.
    * This is system metadata and MUST NEVER be deleted by user data resets.

@@ -4,7 +4,6 @@ import {
   Search, 
   Lock, 
   RefreshCw, 
-  Bell, 
   User, 
   School,
   Clock,
@@ -13,6 +12,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
+import { NotificationCenterPopover } from './NotificationCenterPopover';
 
 export const TopBar: React.FC = () => {
   const { 
@@ -128,11 +128,8 @@ export const TopBar: React.FC = () => {
 
           <div className="h-4 w-px bg-slate-200" />
 
-          {/* Notification Bell */}
-          <div className="p-1.5 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors relative">
-            <Bell className="w-4 h-4" />
-            <span className="w-1.5 h-1.5 bg-blue-600 rounded-full absolute top-1 right-1"></span>
-          </div>
+          {/* Notification Center Popover */}
+          <NotificationCenterPopover />
 
           {/* User Profile Avatar with Account & Security Dropdown Menu */}
           <div className="relative" ref={menuRef}>

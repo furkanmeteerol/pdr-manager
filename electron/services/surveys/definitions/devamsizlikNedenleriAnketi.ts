@@ -42,7 +42,9 @@ export interface RealSurveyDefinition {
   description?: string;
   type: 'SURVEY' | 'INVENTORY' | 'SCALE';
   repeatPolicy: 'UNLIMITED' | 'ONCE' | 'YEARLY';
-  scoringType: 'SUM' | 'AVERAGE' | 'SUBSCALES' | 'CUSTOM';
+  version?: string;
+  versionId?: string;
+  scoringType: 'SUM' | 'TOTAL' | 'AVERAGE' | 'SUBSCALES' | 'CUSTOM';
   estimatedMinutes?: number;
   resultPresentation?: SurveyResultPresentationConfig;
   subscales: RealSurveySubscaleDefinition[];

@@ -56,6 +56,9 @@ export function registerSchoolIpc(databaseService: DatabaseService) {
 
     return rows.map(c => {
       const counts = countMap.get(c.id) || { male: 0, female: 0, total: 0 };
+      const uploadDate = c.pdfUploadDate || (c.pdfUploadedAt ? new Date(c.pdfUploadedAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : undefined);
+      const uploadTime = c.pdfUploadTime || (c.pdfUploadedAt ? new Date(c.pdfUploadedAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : undefined);
+
       return {
         id: c.id,
         schoolYearId: c.schoolYearId,
@@ -65,6 +68,9 @@ export function registerSchoolIpc(databaseService: DatabaseService) {
         teacherName: c.teacherName || undefined,
         pdfPath: c.pdfPath || undefined,
         pdfName: c.pdfName || undefined,
+        pdfUploadedAt: c.pdfUploadedAt || undefined,
+        pdfUploadDate: uploadDate,
+        pdfUploadTime: uploadTime,
         maleCount: counts.male,
         femaleCount: counts.female,
         totalCount: counts.total
@@ -84,6 +90,9 @@ export function registerSchoolIpc(databaseService: DatabaseService) {
       teacherName: rawPayload.teacherName ? rawPayload.teacherName.trim() : null,
       pdfPath: rawPayload.pdfPath || null,
       pdfName: rawPayload.pdfName || null,
+      pdfUploadedAt: rawPayload.pdfUploadedAt || null,
+      pdfUploadDate: rawPayload.pdfUploadDate || null,
+      pdfUploadTime: rawPayload.pdfUploadTime || null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
@@ -103,6 +112,9 @@ export function registerSchoolIpc(databaseService: DatabaseService) {
       teacherName: newClass.teacherName || undefined,
       pdfPath: newClass.pdfPath || undefined,
       pdfName: newClass.pdfName || undefined,
+      pdfUploadedAt: newClass.pdfUploadedAt || undefined,
+      pdfUploadDate: newClass.pdfUploadDate || undefined,
+      pdfUploadTime: newClass.pdfUploadTime || undefined,
       maleCount: 0,
       femaleCount: 0,
       totalCount: 0
@@ -126,6 +138,9 @@ export function registerSchoolIpc(databaseService: DatabaseService) {
     if (data.teacherName !== undefined) updateValues.teacherName = data.teacherName ? data.teacherName.trim() : null;
     if (data.pdfPath !== undefined) updateValues.pdfPath = data.pdfPath || null;
     if (data.pdfName !== undefined) updateValues.pdfName = data.pdfName || null;
+    if (data.pdfUploadedAt !== undefined) updateValues.pdfUploadedAt = data.pdfUploadedAt || null;
+    if (data.pdfUploadDate !== undefined) updateValues.pdfUploadDate = data.pdfUploadDate || null;
+    if (data.pdfUploadTime !== undefined) updateValues.pdfUploadTime = data.pdfUploadTime || null;
 
     db.update(schema.classes).set(updateValues).where(eq(schema.classes.id, id)).run();
 
@@ -138,7 +153,10 @@ export function registerSchoolIpc(databaseService: DatabaseService) {
       branch: updated.branch,
       teacherName: updated.teacherName || undefined,
       pdfPath: updated.pdfPath || undefined,
-      pdfName: updated.pdfName || undefined
+      pdfName: updated.pdfName || undefined,
+      pdfUploadedAt: updated.pdfUploadedAt || undefined,
+      pdfUploadDate: updated.pdfUploadDate || undefined,
+      pdfUploadTime: updated.pdfUploadTime || undefined
     };
   });
 
@@ -167,7 +185,7 @@ export function registerSchoolIpc(databaseService: DatabaseService) {
     return true;
   });
 
-  ipcMain.handle('schools:saveClassPdf', async (_event, classId: string, fileName: string, fileBase64: string): Promise<{ success: boolean; pdfPath: string; pdfName: string }> => {
+  ipcMain.handle('schools:saveClassPdf', async (_event, classId: string, fileName: string, fileBase64: string): Promise<{ success: boolean; pdfPath: string; pdfName: string; pdfUploadedAt: number; pdfUploadDate: string; pdfUploadTime: string }> => {
     const existing = db.select().from(schema.classes).where(eq(schema.classes.id, classId)).get();
     if (!existing) throw new Error('Sınıf bulunamadı');
 
@@ -178,20 +196,36 @@ export function registerSchoolIpc(databaseService: DatabaseService) {
     }
 
     const cleanExt = path.extname(fileName) || '.pdf';
-    const targetFileName = `class_${classId}_${Date.now()}${cleanExt}`;
+    const now = Date.now();
+    const targetFileName = `class_${classId}_${now}${cleanExt}`;
     const targetPath = path.join(pdfDir, targetFileName);
 
     const buffer = Buffer.from(fileBase64, 'base64');
     fs.writeFileSync(targetPath, buffer);
 
+    const dateObj = new Date(now);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const uploadDate = `${pad(dateObj.getDate())}.${pad(dateObj.getMonth() + 1)}.${dateObj.getFullYear()}`;
+    const uploadTime = `${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
+
     db.update(schema.classes).set({
       pdfPath: targetPath,
       pdfName: fileName,
-      updatedAt: Date.now()
+      pdfUploadedAt: now,
+      pdfUploadDate: uploadDate,
+      pdfUploadTime: uploadTime,
+      updatedAt: now
     }).where(eq(schema.classes.id, classId)).run();
 
-    logger.info(`Saved class PDF for ${classId}: ${fileName} -> ${targetPath}`);
-    return { success: true, pdfPath: targetPath, pdfName: fileName };
+    logger.info(`Saved class PDF for ${classId}: ${fileName} (Uploaded: ${uploadDate} ${uploadTime}) -> ${targetPath}`);
+    return {
+      success: true,
+      pdfPath: targetPath,
+      pdfName: fileName,
+      pdfUploadedAt: now,
+      pdfUploadDate: uploadDate,
+      pdfUploadTime: uploadTime
+    };
   });
 
   ipcMain.handle('schools:deleteClassPdf', async (_event, classId: string): Promise<{ success: boolean }> => {
@@ -203,6 +237,9 @@ export function registerSchoolIpc(databaseService: DatabaseService) {
     db.update(schema.classes).set({
       pdfPath: null,
       pdfName: null,
+      pdfUploadedAt: null,
+      pdfUploadDate: null,
+      pdfUploadTime: null,
       updatedAt: Date.now()
     }).where(eq(schema.classes.id, classId)).run();
 

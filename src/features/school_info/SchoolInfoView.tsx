@@ -413,18 +413,33 @@ export const SchoolInfoView: React.FC = () => {
                       <td className="text-center font-mono font-extrabold text-slate-900 text-xs">{total}</td>
                       <td className="text-center">
                         {/* Liste (PDF) button */}
-                        <button
-                          onClick={() => setSelectedClassForPdf(cls)}
-                          className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1 mx-auto shadow-xs cursor-pointer ${
-                            cls.pdfPath 
-                              ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                              : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
-                          }`}
-                          title={cls.pdfPath ? 'Sınıf PDF Listesini Görüntüle' : 'Sınıf Listesi PDF Yükle'}
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span>Liste</span>
-                        </button>
+                        <div className="flex flex-col items-center justify-center">
+                          <button
+                            onClick={() => setSelectedClassForPdf(cls)}
+                            className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1 mx-auto shadow-xs cursor-pointer ${
+                              cls.pdfPath 
+                                ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'
+                            }`}
+                            title={
+                              cls.pdfPath 
+                                ? `Sınıf PDF Listesini Görüntüle${cls.pdfUploadDate ? ` (Eklenme: ${cls.pdfUploadDate} ${cls.pdfUploadTime || ''})` : ''}` 
+                                : 'Sınıf Listesi PDF Yükle'
+                            }
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Liste</span>
+                          </button>
+                          {cls.pdfPath && (cls.pdfUploadDate || cls.pdfUploadedAt) && (
+                            <span 
+                              className="text-[10px] text-slate-500 font-medium mt-1 inline-block leading-tight text-center"
+                              title={`Eklenme: ${cls.pdfUploadDate || new Date(cls.pdfUploadedAt!).toLocaleDateString('tr-TR')} ${cls.pdfUploadTime || new Date(cls.pdfUploadedAt!).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`}
+                            >
+                              {cls.pdfUploadDate || new Date(cls.pdfUploadedAt!).toLocaleDateString('tr-TR')}
+                              {cls.pdfUploadTime ? ` ${cls.pdfUploadTime}` : ''}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="text-center">
                         <div className="flex items-center justify-center gap-1.5">

@@ -1,9 +1,13 @@
 {
   "name": "pdr-manager",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "Windows-first, local-first professional student guidance & psychological counseling management application",
   "main": "dist-electron/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/furkanmeteerol/pdr-manager.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -13,6 +17,8 @@
     "dist:nsis": "npm run build && npm run rebuild-native && electron-builder --win nsis",
     "dist:dir": "npm run build && npm run rebuild-native && electron-builder --win --dir",
     "dist:mac": "npm run build && electron-builder --mac --arm64",
+    "release": "npm run build && npm run rebuild-native && electron-builder --win",
+    "release:publish": "npm run build && npm run rebuild-native && electron-builder --win -p always",
     "test": "npm run rebuild-node && vitest run",
     "test:watch": "npm run rebuild-node && vitest",
     "typecheck": "tsc --noEmit",
@@ -21,6 +27,14 @@
   "build": {
     "appId": "com.pdrmanager.app",
     "productName": "PDR Manager",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "furkanmeteerol",
+        "repo": "pdr-manager",
+        "releaseType": "release"
+      }
+    ],
     "win": {
       "target": [
         {
@@ -100,6 +114,7 @@
     "better-sqlite3": "^11.8.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.39.3",
+    "electron-updater": "^6.8.9",
     "hash-wasm": "^4.12.0",
     "lucide-react": "^0.475.0",
     "mammoth": "^1.12.1",

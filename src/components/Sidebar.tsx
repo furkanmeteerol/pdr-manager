@@ -14,11 +14,16 @@ import {
   Gamepad2,
   Sparkles,
   Quote,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Settings
 } from 'lucide-react';
+
+import { WaterTrackerCard } from './WaterTrackerCard';
+import { getQuoteOfTheDay } from '../data/psychologyQuotes';
 
 export const Sidebar: React.FC = () => {
   const { activeTab, setActiveTab } = useAppStore();
+  const dailyQuoteInfo = React.useMemo(() => getQuoteOfTheDay(), []);
 
   const navigationItems = [
     { id: 'dashboard', label: 'Anasayfa', icon: Home },
@@ -32,6 +37,7 @@ export const Sidebar: React.FC = () => {
     { id: 'study_programs', label: 'Ders Çalışma Programı', icon: BookOpen },
     { id: 'presentations', label: 'Sunumlar', icon: Presentation },
     { id: 'data_transfer', label: 'Veri Aktarımı', icon: ArrowLeftRight },
+    { id: 'settings', label: 'Ayarlar & Güncelleme', icon: Settings },
     { id: 'other', label: 'Diğer', icon: Gamepad2 },
   ];
 
@@ -77,17 +83,31 @@ export const Sidebar: React.FC = () => {
         </nav>
       </div>
 
-      {/* Motivational / PDR Quote Card at Bottom */}
-      <div className="p-3 border-t border-slate-100 bg-slate-50/60">
+      {/* Sidebar Footer: Water Intake Tracker & Motivational Quote */}
+      <div className="p-2.5 border-t border-slate-100 bg-slate-50/70 space-y-2">
+        {/* Water Tracker */}
+        <WaterTrackerCard />
+
+        {/* Psychology Quote Card */}
         <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 mb-1">
-            <Quote className="w-3 h-3 text-blue-500" />
-            <span>Günün Sözü</span>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1 text-[10px] font-bold text-blue-600">
+              <Quote className="w-3 h-3 text-blue-500" />
+              <span>Günün Sözü</span>
+            </div>
+            <span className="text-[9px] text-slate-400 font-medium">Toplam {dailyQuoteInfo.totalCount} söz</span>
           </div>
-          <p className="text-[10px] text-slate-500 italic leading-snug">
-            "Rehberlik bir süreçtir; bireyin kendini tanımasına ve geliştirmesine yardımcı olur."
+          <p className="text-[10px] text-slate-600 italic leading-snug">
+            "{dailyQuoteInfo.quote.quote || dailyQuoteInfo.quote.text}"
           </p>
-          <div className="mt-1 text-[9px] text-slate-400 text-right font-medium">— MEB PDR Yönergesi</div>
+          <div className="mt-1 flex items-center justify-between text-[9px] text-slate-400">
+            <span className="text-slate-400 truncate max-w-[110px]" title={dailyQuoteInfo.quote.source || dailyQuoteInfo.quote.field || ''}>
+              {dailyQuoteInfo.quote.source || dailyQuoteInfo.quote.field || ''}
+            </span>
+            <span className="font-semibold text-slate-600 truncate max-w-[100px] text-right" title={dailyQuoteInfo.quote.author}>
+              — {dailyQuoteInfo.quote.author}
+            </span>
+          </div>
         </div>
       </div>
     </aside>

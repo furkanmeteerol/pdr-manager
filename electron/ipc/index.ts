@@ -35,11 +35,13 @@ import { registerDailyNoteIpc } from './dailyNoteIpc';
 import { registerAgendaIpc } from './agendaIpc';
 import { registerDocumentIpc } from './documentIpc';
 import { registerPresentationIpc } from './presentationIpc';
+import { registerUpdateIpc } from './updateIpc';
 import { CounselorDocumentService } from '../services/documents/CounselorDocumentService';
 import { PresentationService } from '../services/presentations/PresentationService';
 import { DailyNoteService } from '../services/daily_notes/DailyNoteService';
 import { AgendaService } from '../services/agenda/AgendaService';
 import { DataTransferService } from '../services/backup/DataTransferService';
+import { UpdateService } from '../services/updater/UpdateService';
 import { logger } from '../services/logger/Logger';
 
 export function registerAllIpcHandlers(
@@ -64,9 +66,10 @@ export function registerAllIpcHandlers(
   agendaService?: AgendaService,
   counselorDocumentService?: CounselorDocumentService,
   presentationService?: PresentationService,
-  getMainWindow?: () => import('electron').BrowserWindow | null
+  getMainWindow?: () => import('electron').BrowserWindow | null,
+  updateService?: UpdateService
 ) {
-  logger.info('Registering all whitelisted IPC handlers (V1 + V2 + V3 + Data Transfer)...');
+  logger.info('Registering all whitelisted IPC handlers (V1 + V2 + V3 + Data Transfer + Updater)...');
   registerAuthIpc(authService, databaseService, dashboardService);
   registerSchoolIpc(databaseService);
   registerStudentIpc(studentService);
@@ -92,6 +95,9 @@ export function registerAllIpcHandlers(
   }
   if (specialEducationService) {
     registerSpecialEducationIpc(specialEducationService);
+  }
+  if (updateService) {
+    registerUpdateIpc(updateService);
   }
   logger.info('All IPC handlers registered successfully.');
 }

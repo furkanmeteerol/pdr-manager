@@ -3,6 +3,7 @@ import { eq, isNull, and, or, desc, sql } from 'drizzle-orm';
 import * as schema from '@database/schema';
 import { SyncEngine } from '../sync/SyncEngine';
 import { notificationService } from '../notifications/NotificationService';
+import { AppointmentScheduler } from '../notifications/AppointmentScheduler';
 import { AppointmentDto } from '@shared/ipc-types';
 import { logger } from '../logger/Logger';
 
@@ -10,11 +11,13 @@ export class AppointmentService {
   private db: BetterSQLite3Database<typeof schema>;
   private deviceId: string;
   private syncEngine?: SyncEngine;
+  private scheduler?: AppointmentScheduler;
 
-  constructor(db: BetterSQLite3Database<typeof schema>, deviceId: string, syncEngine?: SyncEngine) {
+  constructor(db: BetterSQLite3Database<typeof schema>, deviceId: string, syncEngine?: SyncEngine, scheduler?: AppointmentScheduler) {
     this.db = db;
     this.deviceId = deviceId;
     this.syncEngine = syncEngine;
+    this.scheduler = scheduler;
   }
 
   public listAppointments(filter?: { date?: string; status?: string; studentId?: string }): AppointmentDto[] {
@@ -198,7 +201,21 @@ export class AppointmentService {
       `${data.title} — ${data.date} saat ${data.startTime}`
     );
 
-    return this.getAppointmentById(id)!;
+    const created = this.getAppointmentById(id)!;
+
+    if (this.scheduler && created.status === 'scheduled') {
+      this.scheduler.scheduleAppointment({
+        id: created.id,
+        title: created.title,
+        date: created.date,
+        startTime: created.startTime,
+        location: created.location,
+        reminderMinutes: created.reminderMinutes,
+        studentName: created.studentName
+      });
+    }
+
+    return created;
   }
 
   public updateStatus(id: string, status: 'scheduled' | 'pending' | 'completed' | 'student_absent' | 'other' | 'cancelled' | 'no_show', resultNote?: string): AppointmentDto {
@@ -246,7 +263,25 @@ export class AppointmentService {
     });
 
     logger.info(`Updated appointment ${id} status to ${status}`);
-    return this.getAppointmentById(id)!;
+    const updated = this.getAppointmentById(id)!;
+
+    if (this.scheduler) {
+      if (status === 'scheduled') {
+        this.scheduler.scheduleAppointment({
+          id: updated.id,
+          title: updated.title,
+          date: updated.date,
+          startTime: updated.startTime,
+          location: updated.location,
+          reminderMinutes: updated.reminderMinutes,
+          studentName: updated.studentName
+        });
+      } else {
+        this.scheduler.cancelAppointment(id);
+      }
+    }
+
+    return updated;
   }
 
   public updateAppointment(id: string, data: Partial<AppointmentDto> & { resultNote?: string }): AppointmentDto {
@@ -319,7 +354,25 @@ export class AppointmentService {
     });
 
     logger.info(`Updated appointment ${id}`);
-    return this.getAppointmentById(id)!;
+    const updated = this.getAppointmentById(id)!;
+
+    if (this.scheduler) {
+      if (updated.status === 'scheduled') {
+        this.scheduler.scheduleAppointment({
+          id: updated.id,
+          title: updated.title,
+          date: updated.date,
+          startTime: updated.startTime,
+          location: updated.location,
+          reminderMinutes: updated.reminderMinutes,
+          studentName: updated.studentName
+        });
+      } else {
+        this.scheduler.cancelAppointment(id);
+      }
+    }
+
+    return updated;
   }
 
   public deleteAppointment(id: string): boolean {
@@ -363,6 +416,10 @@ export class AppointmentService {
         description: `Randevu silindi: ${existing.title}`
       }).run();
     });
+
+    if (this.scheduler) {
+      this.scheduler.cancelAppointment(id);
+    }
 
     logger.info(`Soft deleted appointment ${id}`);
     return true;

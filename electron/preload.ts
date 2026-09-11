@@ -11,6 +11,10 @@ const api: ElectronApi = {
     getDeviceId: () => ipcRenderer.invoke('system:getDeviceId'),
     getDashboardSummary: () => ipcRenderer.invoke('system:getDashboardSummary')
   },
+  water: {
+    getTodayCount: () => ipcRenderer.invoke('water:getTodayCount'),
+    setTodayCount: (count: number) => ipcRenderer.invoke('water:setTodayCount', count)
+  },
   sync: {
     getStatus: () => ipcRenderer.invoke('sync:getStatus'),
     triggerSync: () => ipcRenderer.invoke('sync:triggerSync'),
@@ -115,7 +119,9 @@ const api: ElectronApi = {
     generateOfflinePackageHtml: (surveyId, passphrase) => ipcRenderer.invoke('surveys:generateOfflinePackageHtml', surveyId, passphrase),
     importOfflineResult: (encryptedPayload, passphrase) => ipcRenderer.invoke('surveys:importOfflineResult', encryptedPayload, passphrase),
     exportPdfReport: (applicationId) => ipcRenderer.invoke('surveys:exportPdfReport', applicationId),
-    getReportHtml: (applicationId) => ipcRenderer.invoke('surveys:getReportHtml', applicationId)
+    getReportHtml: (applicationId) => ipcRenderer.invoke('surveys:getReportHtml', applicationId),
+    exportPaperFormPdf: (surveySlugOrId) => ipcRenderer.invoke('surveys:exportPaperFormPdf', surveySlugOrId),
+    getPaperFormHtml: (surveySlugOrId) => ipcRenderer.invoke('surveys:getPaperFormHtml', surveySlugOrId)
   },
   dataTransfer: {
     exportPackage: (password?: string) => ipcRenderer.invoke('dataTransfer:exportPackage', password),
@@ -216,6 +222,26 @@ const api: ElectronApi = {
     getReferralById: (id) => ipcRenderer.invoke('specialEducation:getReferralById', id),
     listReferralsByStudent: (studentId) => ipcRenderer.invoke('specialEducation:listReferralsByStudent', studentId),
     listAllReferrals: () => ipcRenderer.invoke('specialEducation:listAllReferrals')
+  },
+  updater: {
+    getStatus: () => ipcRenderer.invoke('updater:getStatus'),
+    checkForUpdates: () => ipcRenderer.invoke('updater:checkForUpdates'),
+    downloadUpdate: () => ipcRenderer.invoke('updater:downloadUpdate'),
+    quitAndInstall: () => ipcRenderer.invoke('updater:quitAndInstall'),
+    onStatusChange: (callback) => {
+      const listener = (_event: any, status: any) => callback(status);
+      ipcRenderer.on('updater:statusChanged', listener);
+      return () => {
+        ipcRenderer.removeListener('updater:statusChanged', listener);
+      };
+    },
+    onDownloadProgress: (callback) => {
+      const listener = (_event: any, progress: any) => callback(progress);
+      ipcRenderer.on('updater:downloadProgress', listener);
+      return () => {
+        ipcRenderer.removeListener('updater:downloadProgress', listener);
+      };
+    }
   }
 };
 
