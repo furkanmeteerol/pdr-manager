@@ -47,6 +47,8 @@ jobs:
 
       - name: Build Renderer & Electron Main
         run: npm run build
+        env:
+          GITHUB_UPDATE_TOKEN: ${{ secrets.PDR_UPDATE_TOKEN }}
 
       - name: Rebuild Native Modules for Windows x64
         run: npm run rebuild-native
@@ -55,3 +57,4 @@ jobs:
         run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_UPDATE_TOKEN: ${{ secrets.PDR_UPDATE_TOKEN }}

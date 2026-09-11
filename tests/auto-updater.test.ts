@@ -3,9 +3,10 @@ import path from 'node:path';
 import fs from 'node:fs';
 import Database from 'better-sqlite3';
 import { isNewerVersion, UpdateService, GITHUB_OWNER, GITHUB_REPO, GITHUB_RELEASES_URL } from '../electron/services/updater/UpdateService';
+import { getClientUpdateToken } from '../electron/services/updater/UpdateConfig';
 import packageJson from '../package.json';
 
-describe('PDR Manager Auto-Updater Test Suite (GitHub Releases)', () => {
+describe('PDR Manager Auto-Updater Test Suite (GitHub Releases & Private Repo)', () => {
 
   describe('1. Semantic Version Comparison (isNewerVersion)', () => {
     it('should detect standard patch version bumps', () => {
@@ -46,7 +47,7 @@ describe('PDR Manager Auto-Updater Test Suite (GitHub Releases)', () => {
       expect(packageJson.version).toMatch(/^\d+\.\d+\.\d+$/);
     });
 
-    it('should have GitHub publish provider configured with correct owner and repo', () => {
+    it('should have GitHub publish provider configured with correct owner, repo and private: true', () => {
       expect(packageJson.build).toBeDefined();
       expect(packageJson.build.publish).toBeDefined();
       expect(Array.isArray(packageJson.build.publish)).toBe(true);
@@ -54,6 +55,7 @@ describe('PDR Manager Auto-Updater Test Suite (GitHub Releases)', () => {
       expect(githubPublisher).toBeDefined();
       expect(githubPublisher!.owner).toBe(GITHUB_OWNER);
       expect(githubPublisher!.repo).toBe(GITHUB_REPO);
+      expect(githubPublisher!.private).toBe(true);
       expect(githubPublisher!.releaseType).toBe('release');
     });
 
@@ -63,7 +65,44 @@ describe('PDR Manager Auto-Updater Test Suite (GitHub Releases)', () => {
     });
   });
 
-  describe('3. UpdateService State Machine & Dev-Mode Isolation', () => {
+  describe('3. Private GitHub Token Resolution (UpdateConfig)', () => {
+    const originalEnv = { ...process.env };
+
+    beforeEach(() => {
+      delete process.env.GITHUB_UPDATE_TOKEN;
+      delete process.env.GH_UPDATE_TOKEN;
+      delete process.env.GH_TOKEN;
+      delete process.env.GITHUB_TOKEN;
+    });
+
+    afterEach(() => {
+      process.env = { ...originalEnv };
+    });
+
+    it('should resolve token strictly from GITHUB_UPDATE_TOKEN with trimming', () => {
+      process.env.GITHUB_UPDATE_TOKEN = '  ghp_mock_test_token_12345  ';
+      expect(getClientUpdateToken()).toBe('ghp_mock_test_token_12345');
+    });
+
+    it('should NOT fall back to GH_UPDATE_TOKEN, GH_TOKEN, or GITHUB_TOKEN (prevent CI token leak)', () => {
+      process.env.GH_UPDATE_TOKEN = 'ghp_mock_ci_token_fallback';
+      process.env.GH_TOKEN = 'ghp_mock_ci_token_gh';
+      process.env.GITHUB_TOKEN = 'ghp_mock_ci_token_github';
+
+      expect(getClientUpdateToken()).toBeNull();
+    });
+
+    it('should return null when GITHUB_UPDATE_TOKEN is not set', () => {
+      expect(getClientUpdateToken()).toBeNull();
+    });
+
+    it('should return null when GITHUB_UPDATE_TOKEN is empty or only whitespace', () => {
+      process.env.GITHUB_UPDATE_TOKEN = '    ';
+      expect(getClientUpdateToken()).toBeNull();
+    });
+  });
+
+  describe('4. UpdateService State Machine & Dev-Mode Isolation', () => {
     it('should initialize with idle or dev-mode state and correct current version', () => {
       const mockWinGetter = () => null;
       const service = new UpdateService(mockWinGetter);

@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import { UpdateStatus, UpdateProgress } from '@shared/ipc-types';
 import { logger } from '../logger/Logger';
+import { getClientUpdateToken } from './UpdateConfig';
 
 export const GITHUB_OWNER = 'furkanmeteerol';
 export const GITHUB_REPO = 'pdr-manager';
@@ -36,7 +37,7 @@ function getCurrentAppVersion(): string {
       if (v) return v;
     }
   } catch {}
-  return process.env.npm_package_version || '1.0.1';
+  return process.env.npm_package_version || '1.0.2';
 }
 
 export class UpdateService {
@@ -87,14 +88,20 @@ export class UpdateService {
         debug: (message: any) => logger.debug(`[AutoUpdater] ${message}`)
       };
 
-      // Set GitHub Releases provider (public, tokenless for client)
+      // Resolve update token for private GitHub repository
+      const clientToken = getClientUpdateToken();
+
+      // Configure GitHub Releases provider (Private repository mode via canonical token)
       autoUpdater.setFeedURL({
         provider: 'github',
         owner: GITHUB_OWNER,
         repo: GITHUB_REPO,
+        private: true,
+        token: clientToken || undefined,
         releaseType: 'release'
       });
-      logger.info(`[AutoUpdater] GitHub Releases Feed initialized: ${GITHUB_OWNER}/${GITHUB_REPO}`);
+
+      logger.info(`[AutoUpdater] GitHub Releases Feed initialized: ${GITHUB_OWNER}/${GITHUB_REPO} (private: true, token: ${clientToken ? 'configured' : 'none'})`);
 
       // Attach lifecycle event listeners
       autoUpdater.on('checking-for-update', () => {
@@ -171,8 +178,10 @@ export class UpdateService {
         
         if (errStr.includes('net::ERR_INTERNET_DISCONNECTED') || errStr.includes('ENOTFOUND') || errStr.includes('EAI_AGAIN')) {
           userFriendlyMsg = 'İnternet bağlantısı yok. Lütfen ağ bağlantınızı kontrol edip tekrar deneyiniz.';
+        } else if (errStr.includes('401') || errStr.includes('403') || errStr.includes('Bad credentials')) {
+          userFriendlyMsg = 'GitHub erişim yetkilendirme hatası (Private repository erişim izni veya token geçersiz).';
         } else if (errStr.includes('404')) {
-          userFriendlyMsg = 'GitHub üzerinde yayınlanmış bir sürüm paketi bulunamadı.';
+          userFriendlyMsg = 'GitHub üzerinde yayınlanmış bir sürüm paketi bulunamadı veya erişim yetkisi yetersiz.';
         } else if (errStr.includes('timeout') || errStr.includes('ETIMEDOUT')) {
           userFriendlyMsg = 'GitHub Releases sunucusuna bağlanırken zaman aşımı oluştu.';
         }

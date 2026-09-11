@@ -1,6 +1,6 @@
 {
   "name": "pdr-manager",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "description": "Windows-first, local-first professional student guidance & psychological counseling management application",
   "main": "dist-electron/main.js",
@@ -32,6 +32,7 @@
         "provider": "github",
         "owner": "furkanmeteerol",
         "repo": "pdr-manager",
+        "private": true,
         "releaseType": "release"
       }
     ],

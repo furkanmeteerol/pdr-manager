@@ -10,6 +10,11 @@ export default defineConfig({
       main: {
         entry: 'electron/main.ts',
         vite: {
+          define: {
+            __BUILD_GITHUB_UPDATE_TOKEN__: JSON.stringify(
+              (process.env.GITHUB_UPDATE_TOKEN || '').trim()
+            )
+          },
           build: {
             outDir: 'dist-electron',
             rollupOptions: {
