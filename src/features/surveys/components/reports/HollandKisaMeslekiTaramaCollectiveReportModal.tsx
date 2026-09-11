@@ -11,7 +11,7 @@ import {
 import { SurveyApplicationDto } from '@shared/ipc-types';
 import { ModalPortal } from '../../../../components/ModalPortal';
 import { SurveyResultDetailModal } from '../SurveyResultDetailModal';
-import { calculateHollandKisaEvaluation } from '../../../../../shared/hollandKisaEvaluation';
+import { getHollandKisaEvaluation } from '../../../../../shared/hollandKisaEvaluation';
 
 interface HollandKisaMeslekiTaramaCollectiveReportModalProps {
   isOpen: boolean;
@@ -228,13 +228,7 @@ export const HollandKisaMeslekiTaramaCollectiveReportModal: React.FC<HollandKisa
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
                     {filteredApplications.map((app, index) => {
-                      const answers = app.answers || [];
-                      const evalResult = calculateHollandKisaEvaluation(
-                        answers.map((a, idx) => ({
-                          questionOrder: a.questionOrder || idx + 1,
-                          selectedOptionValue: a.answerValue || a.selectedOptionLabel || '1'
-                        }))
-                      );
+                      const evalResult = getHollandKisaEvaluation(app);
 
                       const scoreMap: Record<string, number> = {};
                       evalResult.typeResults.forEach(r => {

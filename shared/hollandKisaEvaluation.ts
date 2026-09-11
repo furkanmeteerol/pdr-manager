@@ -267,6 +267,20 @@ export interface AnswerItemInput {
 export const HOLLAND_KISA_SOURCE_INFO =
   'Bu envanter, Eskişehir Osmangazi Üniversitesi Sosyal Bilimler Dergisi\'nde (2017, 18(1), 73-93) yayımlanan "Mesleki Kişilik Tipleri Envanterinin Geliştirilmesi" (Atli & Keldal) araştırmasındaki 30 maddelik 9\'lu Likert ölçeğini temel almaktadır. Envanterde toplam puan hesaplanmaz; 6 alt boyutun puanları (5-45) sıralanarak ilk üç mesleki kişilik tipine göre değerlendirme yapılır.';
 
+export function normalizeHollandKisaAnswerValue(raw: any): number {
+  if (raw === undefined || raw === null) return 1;
+  if (typeof raw === 'number' && raw >= 1 && raw <= 9) return Math.round(raw);
+  const str = String(raw).trim();
+  const match = str.match(/^([1-9])/);
+  if (match) {
+    const n = parseInt(match[1], 10);
+    if (n >= 1 && n <= 9) return n;
+  }
+  const parsed = parseInt(str, 10);
+  if (!isNaN(parsed) && parsed >= 1 && parsed <= 9) return parsed;
+  return 1;
+}
+
 export function calculateHollandKisaEvaluation(
   answersInput: AnswerItemInput[] | Record<string, string | number> | any
 ): HollandKisaEvaluationResult {
@@ -283,13 +297,10 @@ export function calculateHollandKisaEvaluation(
 
       let val = 1;
       if (typeof a.answerScore === 'number' && a.answerScore >= 1 && a.answerScore <= 9) {
-        val = a.answerScore;
+        val = Math.round(a.answerScore);
       } else {
         const raw = a.answerValue ?? a.selectedOptionValue ?? a.value ?? a.answer ?? a.score ?? a.selectedOptionLabel ?? '';
-        const parsed = parseInt(String(raw), 10);
-        if (!isNaN(parsed) && parsed >= 1 && parsed <= 9) {
-          val = parsed;
-        }
+        val = normalizeHollandKisaAnswerValue(raw);
       }
       answerMap.set(qNum, val);
     });
@@ -299,8 +310,7 @@ export function calculateHollandKisaEvaluation(
       const qNum = parseInt(numPart, 10);
       if (!isNaN(qNum) && qNum >= 1 && qNum <= 30) {
         const raw = answersInput[key];
-        const parsed = parseInt(String(raw), 10);
-        const val = (!isNaN(parsed) && parsed >= 1 && parsed <= 9) ? parsed : 1;
+        const val = normalizeHollandKisaAnswerValue(raw);
         answerMap.set(qNum, val);
       }
     });
@@ -370,6 +380,30 @@ export function calculateHollandKisaEvaluation(
     summaryParagraph,
     guidanceNote,
   };
+}
+
+/**
+ * Resolves the canonical Holland Kısa evaluation from an application DTO or answers map.
+ * Checks frozen snapshot first, then rawMetrics, then recalculates if necessary.
+ */
+export function getHollandKisaEvaluation(app: any): HollandKisaEvaluationResult {
+  const snapAny = app?.resultSnapshot as any;
+  if (snapAny?.hollandKisaEvaluation?.typeResults && Array.isArray(snapAny.hollandKisaEvaluation.typeResults) && snapAny.hollandKisaEvaluation.typeResults.length > 0) {
+    return snapAny.hollandKisaEvaluation;
+  }
+  if (snapAny?.rawMetrics?.hollandKisaEvaluation?.typeResults && Array.isArray(snapAny.rawMetrics.hollandKisaEvaluation.typeResults) && snapAny.rawMetrics.hollandKisaEvaluation.typeResults.length > 0) {
+    return snapAny.rawMetrics.hollandKisaEvaluation;
+  }
+  if (snapAny?.rawMetrics?.answers) {
+    return calculateHollandKisaEvaluation(snapAny.rawMetrics.answers);
+  }
+  if (app?.answers && Array.isArray(app.answers) && app.answers.length > 0) {
+    return calculateHollandKisaEvaluation(app.answers);
+  }
+  if (Array.isArray(app) || (app && typeof app === 'object' && ('q1' in app || '1' in app || 'answers' in app))) {
+    return calculateHollandKisaEvaluation(app.answers || app);
+  }
+  return calculateHollandKisaEvaluation([]);
 }
 
 export const evaluateHollandKisaResponses = calculateHollandKisaEvaluation;

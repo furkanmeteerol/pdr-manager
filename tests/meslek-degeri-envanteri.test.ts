@@ -11,6 +11,7 @@ import {
 } from '../electron/services/surveys/definitions/meslekDegeriEnvanteri';
 import { 
   calculateMeslekDegeriEvaluation, 
+  getMeslekDegeriEvaluation,
   MESLEK_DEGERI_METADATA, 
   MESLEK_DEGERI_QUESTION_MAP,
   MESLEK_DEGERI_KEYS_ORDER,
@@ -20,6 +21,7 @@ import { MeslekDegeriPdfReport } from '../electron/services/surveys/reports/Mesl
 import { SurveyReportRegistry } from '../electron/services/surveys/reports/SurveyReportRegistry';
 import { filterApplicationsByScope } from '../src/features/surveys/components/reports/MeslekDegeriCollectiveReportModal';
 import { SystemCatalogService } from '../electron/services/surveys/SystemCatalogService';
+import { SurveyEngine } from '../electron/services/surveys/SurveyEngine';
 import { SurveyApplicationDto } from '@shared/ipc-types';
 
 import { runMigrations } from '../electron/services/database/migrations';
@@ -29,16 +31,18 @@ describe('Meslek Değeri Envanteri (MESLEK-DEGERI-35) Test Paketi', () => {
   const tempDbDir = path.join(__dirname, '..', 'temp_test_meslek_degeri_suite');
   const tempDbPath = path.join(tempDbDir, 'test_pdr.sqlite');
   let sqlite: Database.Database;
+  let db: any;
 
   beforeEach(() => {
     if (!fs.existsSync(tempDbDir)) {
       fs.mkdirSync(tempDbDir, { recursive: true });
     }
     if (fs.existsSync(tempDbPath)) {
-      fs.unlinkSync(tempDbPath);
+      try { fs.unlinkSync(tempDbPath); } catch {}
     }
     const conn = createDatabaseConnection(tempDbPath);
     sqlite = conn.sqlite;
+    db = conn.db;
     runMigrations(sqlite);
   });
 
@@ -411,6 +415,120 @@ describe('Meslek Değeri Envanteri (MESLEK-DEGERI-35) Test Paketi', () => {
 
       const subscales = sqlite.prepare('SELECT * FROM survey_subscales WHERE survey_version_id = ?').all(versionRow.id);
       expect(subscales).toHaveLength(9);
+    });
+  });
+
+  describe('6. Uçtan Uca Değerlendirme, Snapshot ve Hidrasyon Tutarlılığı', () => {
+    it('6.1. SurveyEngine submitApplication doğru snapshot üretmeli, listApplications ve getApplicationDetail tutarlı olmalı', async () => {
+      SystemCatalogService.seedAllCatalogs(sqlite, 'test-device');
+
+      const mockSyncEngine = {
+        recordChange: () => {},
+        subscribe: () => () => {},
+        getPendingCount: () => 0,
+      } as any;
+
+      const engine = new SurveyEngine(db, 'test-device', mockSyncEngine);
+
+      // Create dummy school, year, class, student
+      sqlite.prepare(`
+        INSERT INTO schools (id, name, created_at, updated_at, version, last_modified_device_id)
+        VALUES ('sch-1', 'Cumhuriyet Anadolu Lisesi', 1000, 1000, 1, 'dev-1')
+        ON CONFLICT(id) DO NOTHING;
+      `).run();
+
+      sqlite.prepare(`
+        INSERT INTO school_years (id, name, start_date, end_date, is_active, created_at, updated_at, version, last_modified_device_id)
+        VALUES ('year-2026', '2026-2027', '2026-09-01', '2027-06-20', 1, 1000, 1000, 1, 'dev-1')
+        ON CONFLICT(id) DO NOTHING;
+      `).run();
+
+      sqlite.prepare(`
+        INSERT INTO classes (id, school_year_id, name, grade, branch, created_at, updated_at, version, last_modified_device_id)
+        VALUES ('class-11a', 'year-2026', '11-A', 11, 'A', 1000, 1000, 1, 'dev-1')
+        ON CONFLICT(id) DO NOTHING;
+      `).run();
+
+      sqlite.prepare(`
+        INSERT INTO students (id, school_year_id, class_id, student_number, first_name, last_name, gender, status, notes, created_at, updated_at, version, last_modified_device_id)
+        VALUES ('st-001', 'year-2026', 'class-11a', '101', 'Ahmet', 'Yıldız', 'male', 'active', '', 1000, 1000, 1, 'dev-1')
+        ON CONFLICT(id) DO NOTHING;
+      `).run();
+
+      // Submit application with specific answers:
+      // Ekip Çalışması (q18, q23, q26, q32) -> 9
+      // Kazanç (q1, q14, q22, q31) -> 8
+      // Others -> 2
+      const survey = engine.getSurveyBySlug('meslek-degeri-envanteri');
+      const questions = survey!.currentVersion!.questions!;
+      const answers = questions.map((q) => {
+        const qNum = q.questionOrder;
+        let val = '2';
+        if ([18, 23, 26, 32].includes(qNum)) val = '9';
+        else if ([1, 14, 22, 31].includes(qNum)) val = '8';
+        return {
+          questionId: q.id,
+          answerValue: val
+        };
+      });
+
+      const res = engine.submitApplication({
+        surveySlug: 'meslek-degeri-envanteri',
+        studentNumber: '101',
+        answers
+      });
+
+      expect(res.success).toBe(true);
+      const appDto = res.application!;
+      expect(appDto).toBeDefined();
+      expect(appDto.resultSnapshot).toBeDefined();
+      expect(appDto.resultSnapshot?.meslekDegeriEvaluation).toBeDefined();
+
+      const snapEval = appDto.resultSnapshot?.meslekDegeriEvaluation;
+      expect(snapEval?.top3Values[0].title).toBe('Ekip Çalışması');
+      expect(snapEval?.top3Values[0].averageScore).toBe(9);
+      expect(snapEval?.top3Values[1].title).toBe('Kazanç');
+      expect(snapEval?.top3Values[1].averageScore).toBe(8);
+
+      // Check listApplications
+      const list = await engine.listApplications({ surveyId: 'srv-meslek-degeri-envanteri' });
+      expect(list).toHaveLength(1);
+      const listedApp = list[0];
+      expect(listedApp.resultSnapshot?.meslekDegeriEvaluation).toBeDefined();
+
+      // Ensure getMeslekDegeriEvaluation returns consistent values on listedApp
+      const listedEval = getMeslekDegeriEvaluation(listedApp);
+      expect(listedEval.top3Values[0].title).toBe('Ekip Çalışması');
+      expect(listedEval.top3Values[0].averageScore).toBe(9);
+      expect(listedEval.top3Values[1].title).toBe('Kazanç');
+      expect(listedEval.top3Values[1].averageScore).toBe(8);
+
+      // Check getApplicationDetail
+      const detailApp = await engine.getApplicationDetail(listedApp.id);
+      expect(detailApp).toBeDefined();
+      const detailEval = getMeslekDegeriEvaluation(detailApp!);
+      expect(detailEval.top3Values[0].title).toBe('Ekip Çalışması');
+      expect(detailEval.top3Values[0].averageScore).toBe(9);
+    });
+
+    it('6.2. Snapshot bulunmayan eski kayıtlar getMeslekDegeriEvaluation ile hidrasyon fallback ile çözümlenebilmeli', () => {
+      // Mock application with no snapshot, only answers
+      // Yaratıcılık: [7, 10, 30, 34]
+      const mockLegacyApp = {
+        id: 'legacy-app',
+        surveyId: 'srv-meslek-degeri-envanteri',
+        studentName: 'Zeynep',
+        answers: [
+          { questionOrder: 7, answerValue: '9' },
+          { questionOrder: 10, answerValue: '9' },
+          { questionOrder: 30, answerValue: '9' },
+          { questionOrder: 34, answerValue: '9' }
+        ]
+      };
+
+      const evalResult = getMeslekDegeriEvaluation(mockLegacyApp);
+      expect(evalResult.top3Values[0].key).toBe('YARATICILIK');
+      expect(evalResult.top3Values[0].averageScore).toBe(9);
     });
   });
 });

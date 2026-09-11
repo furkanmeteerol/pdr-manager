@@ -243,6 +243,20 @@ export interface AnswerItemInput {
   answerScore?: number;
 }
 
+export function normalizeMeslekDegeriAnswerValue(raw: any): number {
+  if (raw === undefined || raw === null) return 1;
+  if (typeof raw === 'number' && raw >= 1 && raw <= 9) return Math.round(raw);
+  const str = String(raw).trim();
+  const match = str.match(/^([1-9])/);
+  if (match) {
+    const n = parseInt(match[1], 10);
+    if (n >= 1 && n <= 9) return n;
+  }
+  const parsed = parseInt(str, 10);
+  if (!isNaN(parsed) && parsed >= 1 && parsed <= 9) return parsed;
+  return 1;
+}
+
 export function calculateMeslekDegeriEvaluation(
   answersInput: AnswerItemInput[] | Record<string, string | number> | any
 ): MeslekDegeriEvaluationResult {
@@ -259,13 +273,10 @@ export function calculateMeslekDegeriEvaluation(
 
       let val = 1;
       if (typeof a.answerScore === 'number' && a.answerScore >= 1 && a.answerScore <= 9) {
-        val = a.answerScore;
+        val = Math.round(a.answerScore);
       } else {
         const raw = a.answerValue ?? a.selectedOptionValue ?? a.value ?? a.answer ?? a.score ?? a.selectedOptionLabel ?? '';
-        const parsed = parseInt(String(raw), 10);
-        if (!isNaN(parsed) && parsed >= 1 && parsed <= 9) {
-          val = parsed;
-        }
+        val = normalizeMeslekDegeriAnswerValue(raw);
       }
       answerMap.set(qNum, val);
     });
@@ -275,8 +286,7 @@ export function calculateMeslekDegeriEvaluation(
       const qNum = parseInt(numPart, 10);
       if (!isNaN(qNum) && qNum >= 1 && qNum <= 35) {
         const raw = answersInput[key];
-        const parsed = parseInt(String(raw), 10);
-        const val = (!isNaN(parsed) && parsed >= 1 && parsed <= 9) ? parsed : 1;
+        const val = normalizeMeslekDegeriAnswerValue(raw);
         answerMap.set(qNum, val);
       }
     });
@@ -351,6 +361,30 @@ export function calculateMeslekDegeriEvaluation(
     summaryParagraph,
     methodologyNote
   };
+}
+
+/**
+ * Resolves the canonical Meslek Değeri evaluation from an application DTO or answers map.
+ * Checks frozen snapshot first, then rawMetrics, then recalculates if necessary.
+ */
+export function getMeslekDegeriEvaluation(app: any): MeslekDegeriEvaluationResult {
+  const snapAny = app?.resultSnapshot as any;
+  if (snapAny?.meslekDegeriEvaluation?.valueResults && Array.isArray(snapAny.meslekDegeriEvaluation.valueResults) && snapAny.meslekDegeriEvaluation.valueResults.length > 0) {
+    return snapAny.meslekDegeriEvaluation;
+  }
+  if (snapAny?.rawMetrics?.meslekDegeriEvaluation?.valueResults && Array.isArray(snapAny.rawMetrics.meslekDegeriEvaluation.valueResults) && snapAny.rawMetrics.meslekDegeriEvaluation.valueResults.length > 0) {
+    return snapAny.rawMetrics.meslekDegeriEvaluation;
+  }
+  if (snapAny?.rawMetrics?.answers) {
+    return calculateMeslekDegeriEvaluation(snapAny.rawMetrics.answers);
+  }
+  if (app?.answers && Array.isArray(app.answers) && app.answers.length > 0) {
+    return calculateMeslekDegeriEvaluation(app.answers);
+  }
+  if (Array.isArray(app) || (app && typeof app === 'object' && ('q1' in app || '1' in app || 'answers' in app))) {
+    return calculateMeslekDegeriEvaluation(app.answers || app);
+  }
+  return calculateMeslekDegeriEvaluation([]);
 }
 
 export const evaluateMeslekDegeriResponses = calculateMeslekDegeriEvaluation;

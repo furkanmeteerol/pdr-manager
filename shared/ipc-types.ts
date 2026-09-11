@@ -473,6 +473,18 @@ export interface SurveyResultSnapshotDto {
   rawMetrics?: Record<string, any>;
   versionSnapshot: number;
   calculatedAt: number;
+  burdonEvaluation?: any;
+  automaticThoughtsEvaluation?: any;
+  basarisizlikEvaluation?: any;
+  calismaDavranisiEvaluation?: any;
+  ptlEvaluation?: any;
+  rosenbergEvaluation?: any;
+  kgbnEvaluation?: any;
+  abaoEvaluation?: any;
+  meslekDegeriEvaluation?: any;
+  hollandKisaEvaluation?: any;
+  hollandEvaluation?: any;
+  [key: string]: any;
 }
 
 export interface SurveyAnswerDto {

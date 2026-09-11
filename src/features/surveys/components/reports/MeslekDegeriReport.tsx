@@ -2,7 +2,7 @@ import React from 'react';
 import { SurveyApplicationDto } from '@shared/ipc-types';
 import { Info, Compass, Award } from 'lucide-react';
 import { 
-  calculateMeslekDegeriEvaluation, 
+  getMeslekDegeriEvaluation,
   MESLEK_DEGERI_SOURCE_INFO 
 } from '../../../../../shared/meslekDegeriEvaluation';
 
@@ -14,12 +14,7 @@ export const MeslekDegeriReport: React.FC<MeslekDegeriReportProps> = ({
   application
 }) => {
   const answers = application.answers || [];
-  const evaluation = calculateMeslekDegeriEvaluation(
-    answers.map((a, idx) => ({
-      questionOrder: a.questionOrder || idx + 1,
-      selectedOptionValue: a.answerValue || a.selectedOptionLabel || '1'
-    }))
-  );
+  const evaluation = getMeslekDegeriEvaluation(application);
 
   const formattedDate = new Date(application.completedAt).toLocaleDateString('tr-TR', {
     day: '2-digit',

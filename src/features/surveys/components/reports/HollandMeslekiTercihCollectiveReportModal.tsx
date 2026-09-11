@@ -11,7 +11,7 @@ import {
 import { SurveyApplicationDto } from '@shared/ipc-types';
 import { ModalPortal } from '../../../../components/ModalPortal';
 import { SurveyResultDetailModal } from '../SurveyResultDetailModal';
-import { calculateHollandEvaluation } from '../../../../../shared/hollandEvaluation';
+import { getHollandEvaluation } from '../../../../../shared/hollandEvaluation';
 export type ApplicationScopeFilter = 'latest_per_student' | 'all';
 
 export function filterApplicationsByScope(
@@ -276,12 +276,7 @@ export const HollandMeslekiTercihCollectiveReportModal: React.FC<HollandMeslekiT
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-slate-800">
                     {displayedApps.map((app, idx) => {
-                      const evaluation = calculateHollandEvaluation(
-                        (app.answers || []).map((a, aIdx) => ({
-                          questionOrder: a.questionOrder || aIdx + 1,
-                          selectedOptionValue: a.answerValue || a.selectedOptionLabel || ''
-                        }))
-                      );
+                      const evaluation = getHollandEvaluation(app);
                       const dateStr = new Date(app.completedAt).toLocaleDateString('tr-TR');
 
                       const getTypeScore = (key: string) => {

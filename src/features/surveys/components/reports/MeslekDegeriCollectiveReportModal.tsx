@@ -11,7 +11,7 @@ import {
 import { SurveyApplicationDto } from '@shared/ipc-types';
 import { ModalPortal } from '../../../../components/ModalPortal';
 import { SurveyResultDetailModal } from '../SurveyResultDetailModal';
-import { calculateMeslekDegeriEvaluation } from '../../../../../shared/meslekDegeriEvaluation';
+import { getMeslekDegeriEvaluation } from '../../../../../shared/meslekDegeriEvaluation';
 
 interface MeslekDegeriCollectiveReportModalProps {
   isOpen: boolean;
@@ -240,12 +240,7 @@ export const MeslekDegeriCollectiveReportModal: React.FC<MeslekDegeriCollectiveR
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-slate-800">
                     {filteredApplications.map((app, idx) => {
-                      const evaluation = calculateMeslekDegeriEvaluation(
-                        (app.answers || []).map((a, aIdx) => ({
-                          questionOrder: a.questionOrder || aIdx + 1,
-                          selectedOptionValue: a.answerValue || a.selectedOptionLabel || '1'
-                        }))
-                      );
+                      const evaluation = getMeslekDegeriEvaluation(app);
 
                       const top1 = evaluation.top3Values[0];
                       const top2 = evaluation.top3Values[1];

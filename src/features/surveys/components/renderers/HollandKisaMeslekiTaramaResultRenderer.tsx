@@ -1,7 +1,7 @@
 import React from 'react';
 import { Compass, Info, Award } from 'lucide-react';
 import { SurveyApplicationDto, SurveyResultPresentationConfig } from '@shared/ipc-types';
-import { calculateHollandKisaEvaluation, HOLLAND_KISA_SOURCE_INFO } from '../../../../../shared/hollandKisaEvaluation';
+import { getHollandKisaEvaluation, HOLLAND_KISA_SOURCE_INFO } from '../../../../../shared/hollandKisaEvaluation';
 import { QuestionBreakdownTable } from './QuestionBreakdownTable';
 import { HollandTypeHexagon } from '../shared/HollandTypeHexagon';
 import { HollandHexagonNodeHighlight } from '../../../../../shared/hollandHexagonSvg';
@@ -15,12 +15,7 @@ export const HollandKisaMeslekiTaramaResultRenderer: React.FC<HollandKisaMesleki
   application
 }) => {
   const answers = application.answers || [];
-  const evaluation = calculateHollandKisaEvaluation(
-    answers.map((a, idx) => ({
-      questionOrder: a.questionOrder || idx + 1,
-      selectedOptionValue: a.answerValue || a.selectedOptionLabel || '1'
-    }))
-  );
+  const evaluation = getHollandKisaEvaluation(application);
 
   const highlights: Record<string, HollandHexagonNodeHighlight> = {};
   evaluation.top3Types.forEach((t, idx) => {

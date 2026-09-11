@@ -15,6 +15,7 @@ import { SurveyReportRegistry } from '../electron/services/surveys/reports/Surve
 import {
   calculateHollandEvaluation,
   evaluateHollandResponses,
+  getHollandEvaluation,
   HOLLAND_TYPES_METADATA,
   HOLLAND_TYPE_ORDER,
   HOLLAND_FARKETMEZ_GUIDANCE,
@@ -467,6 +468,94 @@ describe('Holland Mesleki Tercih Envanteri (HOLLAND-90) Comprehensive Test Suite
       expect(SurveyReportRegistry.hasReport('srv-sinav-kaygisi-olcegi')).toBe(true);
       expect(SurveyReportRegistry.hasReport('srv-westside-sinav-kaygisi-olcegi')).toBe(true);
       expect(SurveyReportRegistry.hasReport('srv-holland-mesleki-tercih-envanteri')).toBe(true);
+    });
+  });
+
+  // 10. End-to-End Evaluation, Snapshot and Hydration Consistency
+  describe('10. End-to-End Evaluation, Snapshot and Hydration Consistency', () => {
+    it('10.1. SurveyEngine submitApplication should save correct snapshot and listApplications / getApplicationDetail should hydrate it', async () => {
+      // Artistic (A: 6, 10, 14, 31, 32, 42, 44, 45, 50, 62, 72, 74, 77, 78, 81) -> HOŞLANIRIM (15)
+      // Realistic (R: 5, 12, 23, 24, 27, 30, 36, 43, 46, 57, 69, 76, 79, 86, 89) -> HOŞLANMAM (15)
+      // Others -> FARKETMEZ
+      const survey = surveyEngine.getSurveyBySlug('holland-mesleki-tercih-envanteri');
+      const questions = survey!.currentVersion!.questions!;
+      const artisticH = [6, 10, 14, 31, 32, 42, 44, 45, 50, 62, 72, 74, 77, 78, 81];
+      const realisticM = [5, 12, 23, 24, 27, 30, 36, 43, 46, 57, 69, 76, 79, 86, 89];
+
+      const answers = questions.map((q) => {
+        const qNum = q.questionOrder;
+        let val = 'FARKETMEZ';
+        if (artisticH.includes(qNum)) {
+          val = 'HOŞLANIRIM';
+        } else if (realisticM.includes(qNum)) {
+          val = 'HOŞLANMAM';
+        }
+        return {
+          questionId: q.id,
+          answerValue: val
+        };
+      });
+
+      const res = surveyEngine.submitApplication({
+        surveySlug: 'holland-mesleki-tercih-envanteri',
+        studentNumber: '333',
+        answers
+      });
+
+      expect(res.success).toBe(true);
+      const appDto = res.application!;
+      expect(appDto).toBeDefined();
+      expect(appDto.resultSnapshot?.hollandEvaluation).toBeDefined();
+
+      const snapEval = appDto.resultSnapshot?.hollandEvaluation;
+      expect(snapEval?.dominantTypes[0].typeKey).toBe('ARTISTIC');
+      expect(snapEval?.dominantTypeLabel).toBe('Artistik');
+      expect(snapEval?.maxHoslanirimScore).toBe(15);
+      expect(snapEval?.distantTypes[0].typeKey).toBe('REALISTIC');
+      expect(snapEval?.maxHoslanmamScore).toBe(15);
+
+      // Check listApplications
+      const list = await surveyEngine.listApplications({ surveyId: 'srv-holland-mesleki-tercih-envanteri' });
+      expect(list).toHaveLength(1);
+      const listedApp = list[0];
+      expect(listedApp.resultSnapshot?.hollandEvaluation).toBeDefined();
+
+      // Ensure getHollandEvaluation produces identical result
+      const listedEval = getHollandEvaluation(listedApp);
+      expect(listedEval.dominantTypes[0].typeKey).toBe('ARTISTIC');
+      expect(listedEval.maxHoslanirimScore).toBe(15);
+      expect(listedEval.distantTypes[0].typeKey).toBe('REALISTIC');
+
+      // Check getApplicationDetail
+      const detailApp = await surveyEngine.getApplicationDetail(listedApp.id);
+      expect(detailApp).toBeDefined();
+      const detailEval = getHollandEvaluation(detailApp!);
+      expect(detailEval.dominantTypes[0].typeKey).toBe('ARTISTIC');
+    });
+
+    it('10.2. Turkish diacritics and case variations should be normalized properly by getHollandEvaluation', () => {
+      // Realistic: hoslanirimQuestions: [9, 13, 19, 25], hoslanmamQuestions: [5, 12, 23]
+      const mockLegacy = {
+        id: 'legacy-h90',
+        surveyId: 'srv-holland-mesleki-tercih-envanteri',
+        answers: [
+          { questionOrder: 9, answerValue: 'HOŞLANIRIM' },
+          { questionOrder: 13, answerValue: 'hoşlanırım' },
+          { questionOrder: 19, answerValue: 'hoslanirim' },
+          { questionOrder: 25, answerValue: 'Hoşlanırım' },
+          { questionOrder: 5, answerValue: 'HOŞLANMAM' },
+          { questionOrder: 12, answerValue: 'hoşlanmam' },
+          { questionOrder: 23, answerValue: 'hoslanmam' },
+          { questionOrder: 1, answerValue: 'FARKETMEZ' },
+          { questionOrder: 2, answerValue: 'farketmez' },
+          { questionOrder: 3, answerValue: 'fark etmez' }
+        ]
+      };
+
+      const evalResult = getHollandEvaluation(mockLegacy);
+      const realistic = evalResult.typeResults.find(t => t.typeKey === 'REALISTIC');
+      expect(realistic?.hoslanirimCount).toBe(4);
+      expect(realistic?.hoslanmamCount).toBe(3);
     });
   });
 });

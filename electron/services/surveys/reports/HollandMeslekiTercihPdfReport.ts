@@ -1,5 +1,5 @@
 import { SurveyApplicationDto } from '@shared/ipc-types';
-import { calculateHollandEvaluation } from '../../../../shared/hollandEvaluation';
+import { getHollandEvaluation } from '../../../../shared/hollandEvaluation';
 import { generateHollandHexagonSvg, HollandHexagonNodeHighlight, HOLLAND_HEXAGON_DESCRIPTION_TEXT } from '../../../../shared/hollandHexagonSvg';
 import { ReportHeaderInfo } from './DevamsizlikNedenleriPdfReport';
 
@@ -15,13 +15,7 @@ export class HollandMeslekiTercihPdfReport {
   }
 
   public static generateHtml(application: SurveyApplicationDto, schoolInfo?: ReportHeaderInfo): string {
-    const answers = application.answers || [];
-    const evaluation = calculateHollandEvaluation(
-      answers.map((a, idx) => ({
-        questionOrder: a.questionOrder || idx + 1,
-        selectedOptionValue: a.answerValue || a.selectedOptionLabel || ''
-      }))
-    );
+    const evaluation = getHollandEvaluation(application);
 
     const formattedDate = new Date(application.completedAt).toLocaleDateString('tr-TR', {
       day: '2-digit',

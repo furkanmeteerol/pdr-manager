@@ -8,7 +8,7 @@ import {
   ListOrdered
 } from 'lucide-react';
 import { 
-  calculateMeslekDegeriEvaluation, 
+  getMeslekDegeriEvaluation,
   MESLEK_DEGERI_SOURCE_INFO 
 } from '../../../../../shared/meslekDegeriEvaluation';
 
@@ -21,12 +21,7 @@ export const MeslekDegeriResultRenderer: React.FC<MeslekDegeriResultRendererProp
   application
 }) => {
   const answers = application.answers || [];
-  const evaluation = calculateMeslekDegeriEvaluation(
-    answers.map((a, idx) => ({
-      questionOrder: a.questionOrder || idx + 1,
-      selectedOptionValue: a.answerValue || a.selectedOptionLabel || '1'
-    }))
-  );
+  const evaluation = getMeslekDegeriEvaluation(application);
 
   return (
     <div className="space-y-6">

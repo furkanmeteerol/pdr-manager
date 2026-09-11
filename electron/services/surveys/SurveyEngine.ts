@@ -6,6 +6,9 @@ import { evaluateAkademikBenlikAlgisi } from '../../../shared/akademikBenlikAlgi
 import { evaluateKimeGoreBenNeyim } from '../../../shared/kimeGoreBenNeyimEvaluation';
 import { evaluateRosenbergBenlikSaygisi } from '../../../shared/rosenbergBenlikSaygisiEvaluation';
 import { evaluateProblemTaramaListesi } from '../../../shared/problemTaramaListesiEvaluation';
+import { calculateMeslekDegeriEvaluation } from '../../../shared/meslekDegeriEvaluation';
+import { calculateHollandKisaEvaluation } from '../../../shared/hollandKisaEvaluation';
+import { calculateHollandEvaluation } from '../../../shared/hollandEvaluation';
 import { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq, isNull, and, or, desc, sql } from 'drizzle-orm';
 import crypto from 'node:crypto';
@@ -1031,6 +1034,152 @@ export class SurveyEngine {
       (calculated.resultSnapshot.rawMetrics as any).answers = answersObj;
     }
 
+    // For Meslek Değeri Envanteri (MESLEK-DEGERI-35), compute evaluation and store inside resultSnapshot
+    if (
+      survey.slug === 'meslek-degeri-envanteri' ||
+      survey.id === 'srv-meslek-degeri-envanteri' ||
+      (survey as any).code === 'MESLEK-DEGERI-35' ||
+      (survey as any).code === 'MESLEK-35'
+    ) {
+      const answersObj: Record<string, any> = {};
+      if (calculated.answers && Array.isArray(calculated.answers) && calculated.answers.length > 0) {
+        calculated.answers.forEach((ca, idx) => {
+          const qNum = ca.questionOrder || idx + 1;
+          const val = ca.answerScore ?? ca.answerValue ?? ca.selectedOptionLabel;
+          if (val !== undefined && val !== null) answersObj[`q${qNum}`] = val;
+          if (ca.questionId) answersObj[ca.questionId] = val;
+        });
+      }
+      if (Object.keys(answersObj).length < 35 && version.questions && Array.isArray(version.questions)) {
+        version.questions.forEach(q => {
+          const qNum = q.questionOrder;
+          if (!answersObj[`q${qNum}`] && !answersObj[q.id]) {
+            const rawAns = Array.isArray(payload.answers)
+              ? payload.answers.find((a: any) => a.questionId === q.id || a.questionOrder === qNum)
+              : (payload.answers as any)?.[`q${qNum}`] || (payload.answers as any)?.[q.id];
+            if (rawAns !== undefined && rawAns !== null) {
+              if (typeof rawAns === 'object') {
+                const optId = rawAns.selectedOptionId || rawAns.optionId;
+                const opt = q.options?.find(o => o.id === optId);
+                const val = opt?.score ?? opt?.scoreValue ?? opt?.optionValue ?? rawAns.answerScore ?? rawAns.score ?? rawAns.value ?? rawAns.selectedOptionValue;
+                if (val !== undefined && val !== null) {
+                  answersObj[`q${qNum}`] = val;
+                  answersObj[q.id] = val;
+                }
+              } else {
+                answersObj[`q${qNum}`] = rawAns;
+                answersObj[q.id] = rawAns;
+              }
+            }
+          }
+        });
+      }
+      const meslekEval = calculateMeslekDegeriEvaluation(Object.keys(answersObj).length > 0 ? answersObj : payload.answers);
+      (calculated.resultSnapshot as any).meslekDegeriEvaluation = meslekEval;
+      if (!calculated.resultSnapshot.rawMetrics) {
+        calculated.resultSnapshot.rawMetrics = {};
+      }
+      (calculated.resultSnapshot.rawMetrics as any).meslekDegeriEvaluation = meslekEval;
+      (calculated.resultSnapshot.rawMetrics as any).answers = Object.keys(answersObj).length > 0 ? answersObj : payload.answers;
+    }
+
+    // For Holland Kısa Biçim Mesleki Tarama Envanteri (HOLLAND-KISA-30), compute evaluation and store inside resultSnapshot
+    if (
+      survey.slug === 'holland-kisa-bicim-mesleki-tarama-envanteri' ||
+      survey.slug === 'holland-kisa-mesleki-tarama' ||
+      survey.id === 'srv-holland-kisa-bicim-mesleki-tarama-envanteri' ||
+      (survey as any).code === 'HOLLAND-KISA-30'
+    ) {
+      const answersObj: Record<string, any> = {};
+      if (calculated.answers && Array.isArray(calculated.answers) && calculated.answers.length > 0) {
+        calculated.answers.forEach((ca, idx) => {
+          const qNum = ca.questionOrder || idx + 1;
+          const val = ca.answerScore ?? ca.answerValue ?? ca.selectedOptionLabel;
+          if (val !== undefined && val !== null) answersObj[`q${qNum}`] = val;
+          if (ca.questionId) answersObj[ca.questionId] = val;
+        });
+      }
+      if (Object.keys(answersObj).length < 30 && version.questions && Array.isArray(version.questions)) {
+        version.questions.forEach(q => {
+          const qNum = q.questionOrder;
+          if (!answersObj[`q${qNum}`] && !answersObj[q.id]) {
+            const rawAns = Array.isArray(payload.answers)
+              ? payload.answers.find((a: any) => a.questionId === q.id || a.questionOrder === qNum)
+              : (payload.answers as any)?.[`q${qNum}`] || (payload.answers as any)?.[q.id];
+            if (rawAns !== undefined && rawAns !== null) {
+              if (typeof rawAns === 'object') {
+                const optId = rawAns.selectedOptionId || rawAns.optionId;
+                const opt = q.options?.find(o => o.id === optId);
+                const val = opt?.score ?? opt?.scoreValue ?? opt?.optionValue ?? rawAns.answerScore ?? rawAns.score ?? rawAns.value ?? rawAns.selectedOptionValue;
+                if (val !== undefined && val !== null) {
+                  answersObj[`q${qNum}`] = val;
+                  answersObj[q.id] = val;
+                }
+              } else {
+                answersObj[`q${qNum}`] = rawAns;
+                answersObj[q.id] = rawAns;
+              }
+            }
+          }
+        });
+      }
+      const hollandKisaEval = calculateHollandKisaEvaluation(Object.keys(answersObj).length > 0 ? answersObj : payload.answers);
+      (calculated.resultSnapshot as any).hollandKisaEvaluation = hollandKisaEval;
+      if (!calculated.resultSnapshot.rawMetrics) {
+        calculated.resultSnapshot.rawMetrics = {};
+      }
+      (calculated.resultSnapshot.rawMetrics as any).hollandKisaEvaluation = hollandKisaEval;
+      (calculated.resultSnapshot.rawMetrics as any).answers = Object.keys(answersObj).length > 0 ? answersObj : payload.answers;
+    }
+
+    // For Holland Mesleki Tercih Envanteri (HOLLAND-90), compute evaluation and store inside resultSnapshot
+    if (
+      survey.slug === 'holland-mesleki-tercih-envanteri' ||
+      survey.id === 'srv-holland-mesleki-tercih-envanteri' ||
+      (survey as any).code === 'HOLLAND-90'
+    ) {
+      const answersObj: Record<string, any> = {};
+      if (calculated.answers && Array.isArray(calculated.answers) && calculated.answers.length > 0) {
+        calculated.answers.forEach((ca, idx) => {
+          const qNum = ca.questionOrder || idx + 1;
+          const val = ca.answerValue || ca.selectedOptionLabel || '';
+          if (val) answersObj[`q${qNum}`] = val;
+          if (ca.questionId) answersObj[ca.questionId] = val;
+        });
+      }
+      if (Object.keys(answersObj).length < 90 && version.questions && Array.isArray(version.questions)) {
+        version.questions.forEach(q => {
+          const qNum = q.questionOrder;
+          if (!answersObj[`q${qNum}`] && !answersObj[q.id]) {
+            const rawAns = Array.isArray(payload.answers)
+              ? payload.answers.find((a: any) => a.questionId === q.id || a.questionOrder === qNum)
+              : (payload.answers as any)?.[`q${qNum}`] || (payload.answers as any)?.[q.id];
+            if (rawAns) {
+              if (typeof rawAns === 'object') {
+                const optId = rawAns.selectedOptionId || rawAns.optionId;
+                const opt = q.options?.find(o => o.id === optId);
+                const val = opt?.optionValue || opt?.optionText || rawAns.answerValue || rawAns.value || rawAns.selectedOptionValue || '';
+                if (val) {
+                  answersObj[`q${qNum}`] = val;
+                  answersObj[q.id] = val;
+                }
+              } else {
+                answersObj[`q${qNum}`] = String(rawAns);
+                answersObj[q.id] = String(rawAns);
+              }
+            }
+          }
+        });
+      }
+      const hollandEval = calculateHollandEvaluation(Object.keys(answersObj).length > 0 ? answersObj : payload.answers);
+      (calculated.resultSnapshot as any).hollandEvaluation = hollandEval;
+      if (!calculated.resultSnapshot.rawMetrics) {
+        calculated.resultSnapshot.rawMetrics = {};
+      }
+      (calculated.resultSnapshot.rawMetrics as any).hollandEvaluation = hollandEval;
+      (calculated.resultSnapshot.rawMetrics as any).answers = Object.keys(answersObj).length > 0 ? answersObj : payload.answers;
+    }
+
     const resultSnapshotJson = JSON.stringify(calculated.resultSnapshot);
 
     // 1. Insert Application Attempt
@@ -1473,6 +1622,146 @@ export class SurveyEngine {
         } catch {}
       }
 
+      // Backward-compatibility & integrity guarantee for Meslek Değeri Envanteri
+      if (
+        (r.srv.slug === 'meslek-degeri-envanteri' ||
+         r.srv.id === 'srv-meslek-degeri-envanteri' ||
+         (r.srv as any).code === 'MESLEK-DEGERI-35' ||
+         (r.srv as any).code === 'MESLEK-35') &&
+        (!resultSnapshot || !resultSnapshot.meslekDegeriEvaluation || !resultSnapshot.meslekDegeriEvaluation.valueResults)
+      ) {
+        if (!resultSnapshot) resultSnapshot = {};
+        try {
+          let meslekEval: any = null;
+          if (resultSnapshot?.rawMetrics?.meslekDegeriEvaluation?.valueResults) {
+            meslekEval = resultSnapshot.rawMetrics.meslekDegeriEvaluation;
+          } else if (resultSnapshot?.rawMetrics?.answers) {
+            meslekEval = calculateMeslekDegeriEvaluation(resultSnapshot.rawMetrics.answers);
+          } else {
+            const rawAnswers = this.db.select({
+              ans: schema.surveyAnswers,
+              q: schema.surveyQuestions,
+              opt: schema.surveyOptions
+            })
+            .from(schema.surveyAnswers)
+            .leftJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
+            .leftJoin(schema.surveyOptions, eq(schema.surveyAnswers.selectedOptionId, schema.surveyOptions.id))
+            .where(eq(schema.surveyAnswers.applicationId, r.app.id))
+            .orderBy(schema.surveyQuestions.questionOrder, schema.surveyAnswers.id)
+            .all();
+
+            if (rawAnswers.length > 0) {
+              const answersObj: Record<string, any> = {};
+              rawAnswers.forEach((a, idx) => {
+                const qNum = a.q?.questionOrder || idx + 1;
+                const val = a.opt?.score ?? a.opt?.scoreValue ?? a.ans.answerScore ?? a.ans.answerValue ?? a.opt?.optionText;
+                answersObj[`q${qNum}`] = val;
+                if (a.q?.id) answersObj[a.q.id] = val;
+              });
+              meslekEval = calculateMeslekDegeriEvaluation(answersObj);
+            }
+          }
+          if (meslekEval) {
+            resultSnapshot.meslekDegeriEvaluation = meslekEval;
+            if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+            resultSnapshot.rawMetrics.meslekDegeriEvaluation = meslekEval;
+          }
+        } catch {}
+      }
+
+      // Backward-compatibility & integrity guarantee for Holland Kısa Biçim Mesleki Tarama Envanteri
+      if (
+        (r.srv.slug === 'holland-kisa-bicim-mesleki-tarama-envanteri' ||
+         r.srv.slug === 'holland-kisa-mesleki-tarama' ||
+         r.srv.id === 'srv-holland-kisa-bicim-mesleki-tarama-envanteri' ||
+         (r.srv as any).code === 'HOLLAND-KISA-30') &&
+        (!resultSnapshot || !resultSnapshot.hollandKisaEvaluation || !resultSnapshot.hollandKisaEvaluation.typeResults)
+      ) {
+        if (!resultSnapshot) resultSnapshot = {};
+        try {
+          let hollandKisaEval: any = null;
+          if (resultSnapshot?.rawMetrics?.hollandKisaEvaluation?.typeResults) {
+            hollandKisaEval = resultSnapshot.rawMetrics.hollandKisaEvaluation;
+          } else if (resultSnapshot?.rawMetrics?.answers) {
+            hollandKisaEval = calculateHollandKisaEvaluation(resultSnapshot.rawMetrics.answers);
+          } else {
+            const rawAnswers = this.db.select({
+              ans: schema.surveyAnswers,
+              q: schema.surveyQuestions,
+              opt: schema.surveyOptions
+            })
+            .from(schema.surveyAnswers)
+            .leftJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
+            .leftJoin(schema.surveyOptions, eq(schema.surveyAnswers.selectedOptionId, schema.surveyOptions.id))
+            .where(eq(schema.surveyAnswers.applicationId, r.app.id))
+            .orderBy(schema.surveyQuestions.questionOrder, schema.surveyAnswers.id)
+            .all();
+
+            if (rawAnswers.length > 0) {
+              const answersObj: Record<string, any> = {};
+              rawAnswers.forEach((a, idx) => {
+                const qNum = a.q?.questionOrder || idx + 1;
+                const val = a.opt?.score ?? a.opt?.scoreValue ?? a.ans.answerScore ?? a.ans.answerValue ?? a.opt?.optionText;
+                answersObj[`q${qNum}`] = val;
+                if (a.q?.id) answersObj[a.q.id] = val;
+              });
+              hollandKisaEval = calculateHollandKisaEvaluation(answersObj);
+            }
+          }
+          if (hollandKisaEval) {
+            resultSnapshot.hollandKisaEvaluation = hollandKisaEval;
+            if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+            resultSnapshot.rawMetrics.hollandKisaEvaluation = hollandKisaEval;
+          }
+        } catch {}
+      }
+
+      // Backward-compatibility & integrity guarantee for Holland Mesleki Tercih Envanteri
+      if (
+        (r.srv.slug === 'holland-mesleki-tercih-envanteri' ||
+         r.srv.id === 'srv-holland-mesleki-tercih-envanteri' ||
+         (r.srv as any).code === 'HOLLAND-90') &&
+        (!resultSnapshot || !resultSnapshot.hollandEvaluation || !resultSnapshot.hollandEvaluation.typeResults)
+      ) {
+        if (!resultSnapshot) resultSnapshot = {};
+        try {
+          let hollandEval: any = null;
+          if (resultSnapshot?.rawMetrics?.hollandEvaluation?.typeResults) {
+            hollandEval = resultSnapshot.rawMetrics.hollandEvaluation;
+          } else if (resultSnapshot?.rawMetrics?.answers) {
+            hollandEval = calculateHollandEvaluation(resultSnapshot.rawMetrics.answers);
+          } else {
+            const rawAnswers = this.db.select({
+              ans: schema.surveyAnswers,
+              q: schema.surveyQuestions,
+              opt: schema.surveyOptions
+            })
+            .from(schema.surveyAnswers)
+            .leftJoin(schema.surveyQuestions, eq(schema.surveyAnswers.questionId, schema.surveyQuestions.id))
+            .leftJoin(schema.surveyOptions, eq(schema.surveyAnswers.selectedOptionId, schema.surveyOptions.id))
+            .where(eq(schema.surveyAnswers.applicationId, r.app.id))
+            .orderBy(schema.surveyQuestions.questionOrder, schema.surveyAnswers.id)
+            .all();
+
+            if (rawAnswers.length > 0) {
+              const answersObj: Record<string, any> = {};
+              rawAnswers.forEach((a, idx) => {
+                const qNum = a.q?.questionOrder || idx + 1;
+                const val = a.opt?.optionValue || a.ans.answerValue || a.opt?.optionText || '';
+                answersObj[`q${qNum}`] = val;
+                if (a.q?.id) answersObj[a.q.id] = val;
+              });
+              hollandEval = calculateHollandEvaluation(answersObj);
+            }
+          }
+          if (hollandEval) {
+            resultSnapshot.hollandEvaluation = hollandEval;
+            if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+            resultSnapshot.rawMetrics.hollandEvaluation = hollandEval;
+          }
+        } catch {}
+      }
+
       const calculatedTotalScore =
         resultSnapshot?.totalScore ??
         resultSnapshot?.kgbnEvaluation?.selectedCellCount ??
@@ -1733,6 +2022,71 @@ export class SurveyEngine {
       resultSnapshot.totalScore = burdonEval.correctMarkings;
       if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
       resultSnapshot.rawMetrics.burdonEvaluation = burdonEval;
+    }
+
+    // Meslek Değeri guarantee for getApplicationDetail
+    if (
+      (row.srv.slug === 'meslek-degeri-envanteri' ||
+       row.srv.id === 'srv-meslek-degeri-envanteri' ||
+       (row.srv as any).code === 'MESLEK-DEGERI-35' ||
+       (row.srv as any).code === 'MESLEK-35') &&
+      (!resultSnapshot || !resultSnapshot.meslekDegeriEvaluation || !resultSnapshot.meslekDegeriEvaluation.valueResults)
+    ) {
+      if (!resultSnapshot) resultSnapshot = {};
+      const answersObj: Record<string, any> = {};
+      answers.forEach((a, idx) => {
+        const qNum = a.questionOrder || idx + 1;
+        const val = a.answerScore ?? a.answerValue ?? a.selectedOptionLabel;
+        if (val !== undefined && val !== null) answersObj[`q${qNum}`] = val;
+        if (a.questionId) answersObj[a.questionId] = val;
+      });
+      const meslekEval = calculateMeslekDegeriEvaluation(Object.keys(answersObj).length > 0 ? answersObj : resultSnapshot?.rawMetrics?.answers || {});
+      resultSnapshot.meslekDegeriEvaluation = meslekEval;
+      if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+      resultSnapshot.rawMetrics.meslekDegeriEvaluation = meslekEval;
+    }
+
+    // Holland Kısa guarantee for getApplicationDetail
+    if (
+      (row.srv.slug === 'holland-kisa-bicim-mesleki-tarama-envanteri' ||
+       row.srv.slug === 'holland-kisa-mesleki-tarama' ||
+       row.srv.id === 'srv-holland-kisa-bicim-mesleki-tarama-envanteri' ||
+       (row.srv as any).code === 'HOLLAND-KISA-30') &&
+      (!resultSnapshot || !resultSnapshot.hollandKisaEvaluation || !resultSnapshot.hollandKisaEvaluation.typeResults)
+    ) {
+      if (!resultSnapshot) resultSnapshot = {};
+      const answersObj: Record<string, any> = {};
+      answers.forEach((a, idx) => {
+        const qNum = a.questionOrder || idx + 1;
+        const val = a.answerScore ?? a.answerValue ?? a.selectedOptionLabel;
+        if (val !== undefined && val !== null) answersObj[`q${qNum}`] = val;
+        if (a.questionId) answersObj[a.questionId] = val;
+      });
+      const hollandKisaEval = calculateHollandKisaEvaluation(Object.keys(answersObj).length > 0 ? answersObj : resultSnapshot?.rawMetrics?.answers || {});
+      resultSnapshot.hollandKisaEvaluation = hollandKisaEval;
+      if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+      resultSnapshot.rawMetrics.hollandKisaEvaluation = hollandKisaEval;
+    }
+
+    // Holland Mesleki Tercih guarantee for getApplicationDetail
+    if (
+      (row.srv.slug === 'holland-mesleki-tercih-envanteri' ||
+       row.srv.id === 'srv-holland-mesleki-tercih-envanteri' ||
+       (row.srv as any).code === 'HOLLAND-90') &&
+      (!resultSnapshot || !resultSnapshot.hollandEvaluation || !resultSnapshot.hollandEvaluation.typeResults)
+    ) {
+      if (!resultSnapshot) resultSnapshot = {};
+      const answersObj: Record<string, any> = {};
+      answers.forEach((a, idx) => {
+        const qNum = a.questionOrder || idx + 1;
+        const val = a.answerValue || a.selectedOptionLabel || '';
+        if (val) answersObj[`q${qNum}`] = val;
+        if (a.questionId) answersObj[a.questionId] = val;
+      });
+      const hollandEval = calculateHollandEvaluation(Object.keys(answersObj).length > 0 ? answersObj : resultSnapshot?.rawMetrics?.answers || {});
+      resultSnapshot.hollandEvaluation = hollandEval;
+      if (!resultSnapshot.rawMetrics) resultSnapshot.rawMetrics = {};
+      resultSnapshot.rawMetrics.hollandEvaluation = hollandEval;
     }
 
     const calculatedTotalScore =

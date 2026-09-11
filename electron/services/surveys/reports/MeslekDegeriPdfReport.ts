@@ -1,6 +1,6 @@
 import { SurveyApplicationDto } from '@shared/ipc-types';
 import { 
-  calculateMeslekDegeriEvaluation, 
+  getMeslekDegeriEvaluation,
   MESLEK_DEGERI_SOURCE_INFO 
 } from '../../../../shared/meslekDegeriEvaluation';
 import { ReportHeaderInfo } from './DevamsizlikNedenleriPdfReport';
@@ -17,26 +17,7 @@ export class MeslekDegeriPdfReport {
   }
 
   public static generateHtml(application: SurveyApplicationDto, schoolInfo?: ReportHeaderInfo): string {
-    let answers = application.answers || [];
-    if ((!answers || answers.length === 0) && (application as any).answers_json) {
-      try {
-        const parsed = JSON.parse((application as any).answers_json);
-        if (Array.isArray(parsed)) answers = parsed;
-        else if (typeof parsed === 'object') {
-          answers = Object.entries(parsed).map(([k, v]) => ({
-            questionId: k,
-            answerValue: String(v)
-          }));
-        }
-      } catch {}
-    }
-
-    const evaluation = calculateMeslekDegeriEvaluation(
-      answers.map((a, idx) => ({
-        questionOrder: a.questionOrder || idx + 1,
-        selectedOptionValue: a.answerValue || a.selectedOptionLabel || '1'
-      }))
-    );
+    const evaluation = getMeslekDegeriEvaluation(application);
 
     const formattedDate = new Date(application.completedAt).toLocaleDateString('tr-TR', {
       day: '2-digit',

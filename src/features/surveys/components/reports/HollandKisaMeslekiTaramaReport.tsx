@@ -1,7 +1,7 @@
 import React from 'react';
 import { SurveyApplicationDto } from '@shared/ipc-types';
 import { Info, Compass } from 'lucide-react';
-import { calculateHollandKisaEvaluation, HOLLAND_KISA_SOURCE_INFO } from '../../../../../shared/hollandKisaEvaluation';
+import { getHollandKisaEvaluation, HOLLAND_KISA_SOURCE_INFO } from '../../../../../shared/hollandKisaEvaluation';
 import { HollandTypeHexagon } from '../shared/HollandTypeHexagon';
 import { HollandHexagonNodeHighlight } from '../../../../../shared/hollandHexagonSvg';
 
@@ -13,12 +13,7 @@ export const HollandKisaMeslekiTaramaReport: React.FC<HollandKisaMeslekiTaramaRe
   application
 }) => {
   const answers = application.answers || [];
-  const evaluation = calculateHollandKisaEvaluation(
-    answers.map((a, idx) => ({
-      questionOrder: a.questionOrder || idx + 1,
-      selectedOptionValue: a.answerValue || a.selectedOptionLabel || '1'
-    }))
-  );
+  const evaluation = getHollandKisaEvaluation(application);
 
   const formattedDate = new Date(application.completedAt).toLocaleDateString('tr-TR', {
     day: '2-digit',

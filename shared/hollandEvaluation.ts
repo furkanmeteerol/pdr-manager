@@ -235,6 +235,24 @@ export interface AnswerItemInput {
 export const HOLLAND_FARKETMEZ_GUIDANCE = 
   "Farketmez yanıtlarının dağılımı, kişilik tipinin belirginliği değerlendirilirken dikkate alınmalıdır. Kaynak yönergeye göre yanıtların daha çok 'Farketmez' seçeneğinde yoğunlaşması, kişilik tipinin henüz belirginleşmemiş olabileceğine işaret eder. Kaynakta bunun için sabit bir sayısal kesme değeri belirtilmemiştir.";
 
+export function normalizeHollandAnswerValue(raw: any): 'hoslanirim' | 'hoslanmam' | 'farketmez' | '' {
+  if (raw === undefined || raw === null) return '';
+  const s = String(raw)
+    .trim()
+    .toLowerCase()
+    .replace(/ı/g, 'i')
+    .replace(/İ/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/Ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/Ğ/g, 'g');
+
+  if (s === 'hoslanirim' || s.includes('hoslanir') || s === 'h') return 'hoslanirim';
+  if (s === 'hoslanmam' || s.includes('hoslanma') || s === 'm') return 'hoslanmam';
+  if (s === 'farketmez' || s.includes('farket') || s === 'f') return 'farketmez';
+  return '';
+}
+
 /**
  * Calculates official Holland Vocational Preference Inventory results.
  * Each of the 6 Holland personality types is evaluated across 30 questions (15 Hoşlanırım + 15 Hoşlanmam).
@@ -255,22 +273,29 @@ export function calculateHollandEvaluation(
       }
       if (!qNum) qNum = index + 1;
 
-      const rawVal = a.selectedOptionValue ?? a.value ?? a.answer ?? '';
-      answerMap.set(qNum, String(rawVal).toLowerCase().trim());
+      const rawVal = a.selectedOptionValue ?? a.answerValue ?? a.value ?? a.answer ?? a.selectedOptionLabel ?? '';
+      const normalized = normalizeHollandAnswerValue(rawVal);
+      if (normalized) {
+        answerMap.set(qNum, normalized);
+      }
     });
   } else if (answersInput && typeof answersInput === 'object') {
     Object.keys(answersInput).forEach((key) => {
       const numPart = key.replace(/^[^0-9]+/, '');
       const qNum = parseInt(numPart, 10);
       if (!isNaN(qNum) && qNum >= 1 && qNum <= 90) {
-        answerMap.set(qNum, String(answersInput[key]).toLowerCase().trim());
+        const normalized = normalizeHollandAnswerValue(answersInput[key]);
+        if (normalized) {
+          answerMap.set(qNum, normalized);
+        }
       }
     });
   }
 
   let totalFarketmez90 = 0;
   for (let i = 1; i <= 90; i++) {
-    if (answerMap.get(i) === 'farketmez') {
+    const val = answerMap.get(i);
+    if (!val || val === 'farketmez') {
       totalFarketmez90++;
     }
   }
@@ -362,6 +387,30 @@ export function calculateHollandEvaluation(
     farketmezInterpretation: HOLLAND_FARKETMEZ_GUIDANCE,
     summaryParagraph,
   };
+}
+
+/**
+ * Resolves the canonical Holland evaluation from an application DTO or answers map.
+ * Checks frozen snapshot first, then rawMetrics, then recalculates if necessary.
+ */
+export function getHollandEvaluation(app: any): HollandEvaluationResult {
+  const snapAny = app?.resultSnapshot as any;
+  if (snapAny?.hollandEvaluation?.typeResults && Array.isArray(snapAny.hollandEvaluation.typeResults) && snapAny.hollandEvaluation.typeResults.length > 0) {
+    return snapAny.hollandEvaluation;
+  }
+  if (snapAny?.rawMetrics?.hollandEvaluation?.typeResults && Array.isArray(snapAny.rawMetrics.hollandEvaluation.typeResults) && snapAny.rawMetrics.hollandEvaluation.typeResults.length > 0) {
+    return snapAny.rawMetrics.hollandEvaluation;
+  }
+  if (snapAny?.rawMetrics?.answers) {
+    return calculateHollandEvaluation(snapAny.rawMetrics.answers);
+  }
+  if (app?.answers && Array.isArray(app.answers) && app.answers.length > 0) {
+    return calculateHollandEvaluation(app.answers);
+  }
+  if (Array.isArray(app) || (app && typeof app === 'object' && ('q1' in app || '1' in app || 'answers' in app))) {
+    return calculateHollandEvaluation(app.answers || app);
+  }
+  return calculateHollandEvaluation([]);
 }
 
 export const evaluateHollandResponses = calculateHollandEvaluation;

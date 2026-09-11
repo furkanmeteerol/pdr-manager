@@ -15,6 +15,7 @@ import { HollandKisaMeslekiTaramaPdfReport } from '../electron/services/surveys/
 import { SurveyReportRegistry } from '../electron/services/surveys/reports/SurveyReportRegistry';
 import {
   calculateHollandKisaEvaluation,
+  getHollandKisaEvaluation,
   HOLLAND_KISA_QUESTION_MAP,
   HOLLAND_KISA_TYPES_METADATA,
   HOLLAND_KISA_TYPE_ORDER,
@@ -429,6 +430,85 @@ describe('Holland Kısa Biçim Mesleki Tarama Envanteri (HOLLAND-KISA-30) Compre
     it('should keep Holland Mesleki Tercih Envanteri (90 items) completely intact', () => {
       expect(HOLLAND_MESLEKI_TERCIH_ENVANTERI.questions.length).toBe(90);
       expect(HOLLAND_MESLEKI_TERCIH_ENVANTERI.id).toBe('srv-holland-mesleki-tercih-envanteri');
+    });
+  });
+
+  // 6. End-to-End Evaluation, Snapshot and Hydration Consistency
+  describe('6. End-to-End Evaluation, Snapshot and Hydration Consistency', () => {
+    it('6.1. SurveyEngine submitApplication should save correct snapshot and listApplications / getApplicationDetail should hydrate it', async () => {
+      // Conventional (C: 3, 5, 7, 23, 29) -> 9 (sum 45)
+      // Enterprising (E: 9, 11, 19, 22, 25) -> 7 (sum 35)
+      // Realistic (R: 8, 13, 16, 18, 28) -> 5 (sum 25)
+      // Others -> 1
+      const survey = surveyEngine.getSurveyBySlug('holland-kisa-bicim-mesleki-tarama-envanteri');
+      const questions = survey!.currentVersion!.questions!;
+      const answers = questions.map((q) => {
+        const qNum = q.questionOrder;
+        let val = '1';
+        if ([3, 5, 7, 23, 29].includes(qNum)) val = '9';
+        else if ([9, 11, 19, 22, 25].includes(qNum)) val = '7';
+        else if ([8, 13, 16, 18, 28].includes(qNum)) val = '5';
+        return {
+          questionId: q.id,
+          answerValue: val
+        };
+      });
+
+      const res = surveyEngine.submitApplication({
+        surveySlug: 'holland-kisa-bicim-mesleki-tarama-envanteri',
+        studentNumber: '333',
+        answers
+      });
+
+      expect(res.success).toBe(true);
+      const appDto = res.application!;
+      expect(appDto).toBeDefined();
+      expect(appDto.resultSnapshot?.hollandKisaEvaluation).toBeDefined();
+
+      const snapEval = appDto.resultSnapshot?.hollandKisaEvaluation;
+      expect(snapEval?.hollandCode).toBe('CER');
+      expect(snapEval?.top3Types[0].code).toBe('C');
+      expect(snapEval?.top3Types[0].score).toBe(45);
+      expect(snapEval?.top3Types[1].code).toBe('E');
+      expect(snapEval?.top3Types[1].score).toBe(35);
+      expect(snapEval?.top3Types[2].code).toBe('R');
+      expect(snapEval?.top3Types[2].score).toBe(25);
+
+      // Check listApplications
+      const list = await surveyEngine.listApplications({ surveyId: 'srv-holland-kisa-bicim-mesleki-tarama-envanteri' });
+      expect(list).toHaveLength(1);
+      const listedApp = list[0];
+      expect(listedApp.resultSnapshot?.hollandKisaEvaluation).toBeDefined();
+
+      // Ensure getHollandKisaEvaluation produces CER
+      const listedEval = getHollandKisaEvaluation(listedApp);
+      expect(listedEval.hollandCode).toBe('CER');
+      expect(listedEval.top3Types[0].code).toBe('C');
+
+      // Check getApplicationDetail
+      const detailApp = await surveyEngine.getApplicationDetail(listedApp.id);
+      expect(detailApp).toBeDefined();
+      const detailEval = getHollandKisaEvaluation(detailApp!);
+      expect(detailEval.hollandCode).toBe('CER');
+    });
+
+    it('6.2. getHollandKisaEvaluation should handle legacy/snapshot-less records via answer normalization', () => {
+      // Social: [1, 6, 21, 24, 27]
+      const mockLegacy = {
+        id: 'legacy-hk',
+        surveyId: 'srv-holland-kisa-bicim-mesleki-tarama-envanteri',
+        answers: [
+          { questionOrder: 1, answerValue: '9' },
+          { questionOrder: 6, answerValue: '9' },
+          { questionOrder: 21, answerValue: '9' },
+          { questionOrder: 24, answerValue: '9' },
+          { questionOrder: 27, answerValue: '9' }
+        ]
+      };
+
+      const result = getHollandKisaEvaluation(mockLegacy);
+      expect(result.top3Types[0].code).toBe('S');
+      expect(result.top3Types[0].score).toBe(45);
     });
   });
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Compass, Info } from 'lucide-react';
 import { SurveyApplicationDto, SurveyResultPresentationConfig } from '@shared/ipc-types';
-import { calculateHollandEvaluation, HOLLAND_TYPES_METADATA } from '../../../../../shared/hollandEvaluation';
+import { getHollandEvaluation, HOLLAND_TYPES_METADATA } from '../../../../../shared/hollandEvaluation';
 import { QuestionBreakdownTable } from './QuestionBreakdownTable';
 import { HollandTypeHexagon } from '../shared/HollandTypeHexagon';
 import { HollandHexagonNodeHighlight } from '../../../../../shared/hollandHexagonSvg';
@@ -15,12 +15,7 @@ export const HollandMeslekiTercihResultRenderer: React.FC<HollandMeslekiTercihRe
   application
 }) => {
   const answers = application.answers || [];
-  const evaluation = calculateHollandEvaluation(
-    answers.map((a, idx) => ({
-      questionOrder: a.questionOrder || idx + 1,
-      selectedOptionValue: a.answerValue || a.selectedOptionLabel || ''
-    }))
-  );
+  const evaluation = getHollandEvaluation(application);
 
   const highlights: Record<string, HollandHexagonNodeHighlight> = {};
   evaluation.dominantTypes.forEach((d) => {

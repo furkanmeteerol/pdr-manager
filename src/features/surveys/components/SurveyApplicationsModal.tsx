@@ -26,9 +26,9 @@ import { ProblemTaramaListesiCollectiveReportModal } from './reports/ProblemTara
 import { RosenbergBenlikSaygisiCollectiveReportModal } from './reports/RosenbergBenlikSaygisiCollectiveReportModal';
 import { KimeGoreBenNeyimCollectiveReportModal } from './reports/KimeGoreBenNeyimCollectiveReportModal';
 import { AkademikBenlikAlgisiCollectiveReportModal } from './reports/AkademikBenlikAlgisiCollectiveReportModal';
-import { calculateMeslekDegeriEvaluation } from '../../../../shared/meslekDegeriEvaluation';
-import { calculateHollandKisaEvaluation } from '../../../../shared/hollandKisaEvaluation';
-import { calculateHollandEvaluation } from '../../../../shared/hollandEvaluation';
+import { getMeslekDegeriEvaluation } from '../../../../shared/meslekDegeriEvaluation';
+import { getHollandKisaEvaluation } from '../../../../shared/hollandKisaEvaluation';
+import { getHollandEvaluation } from '../../../../shared/hollandEvaluation';
 import { evaluateAcademicProcrastination } from '../../../../shared/academicProcrastinationEvaluation';
 import { evaluateAutomaticThoughts } from '../../../../shared/automaticThoughtsEvaluation';
 import { evaluateKimeGoreBenNeyim } from '../../../../shared/kimeGoreBenNeyimEvaluation';
@@ -484,9 +484,9 @@ export const SurveyApplicationsModal: React.FC<SurveyApplicationsModalProps> = (
                           {new Date(app.completedAt).toLocaleDateString('tr-TR')}
                         </td>
                         <td className="text-center font-mono font-extrabold text-xs text-indigo-700">
-                          {isMeslekDegeri ? (
+                          {(isMeslekDegeri || app.surveyId === 'srv-meslek-degeri-envanteri' || app.surveySlug === 'meslek-degeri-envanteri' || (app.surveyTitle && app.surveyTitle.includes('Meslek Değeri'))) ? (
                             (() => {
-                              const ev = calculateMeslekDegeriEvaluation((app.answers || []).map((a, idx) => ({ questionOrder: a.questionOrder || idx + 1, answerValue: a.answerValue || a.selectedOptionLabel || '' })));
+                              const ev = getMeslekDegeriEvaluation(app);
                               const top1 = ev.top3Values[0];
                               return top1 ? (
                                 <span className="text-indigo-900 font-extrabold text-xs">
@@ -494,9 +494,9 @@ export const SurveyApplicationsModal: React.FC<SurveyApplicationsModalProps> = (
                                 </span>
                               ) : '—';
                             })()
-                          ) : isHollandKisa ? (
+                          ) : (isHollandKisa || app.surveyId === 'srv-holland-kisa-bicim-mesleki-tarama-envanteri' || app.surveySlug === 'holland-kisa-bicim-mesleki-tarama-envanteri' || app.surveySlug === 'holland-kisa-mesleki-tarama' || (app.surveyTitle && app.surveyTitle.includes('Holland Kısa'))) ? (
                             (() => {
-                              const ev = calculateHollandKisaEvaluation((app.answers || []).map((a, idx) => ({ questionOrder: a.questionOrder || idx + 1, answerValue: a.answerValue || a.selectedOptionLabel || '' })));
+                              const ev = getHollandKisaEvaluation(app);
                               return (
                                 <span className="text-emerald-800 font-extrabold text-xs">
                                   {ev.hollandCode} <span className="text-[10px] text-slate-500 font-normal">({ev.top3Label})</span>
@@ -561,10 +561,14 @@ export const SurveyApplicationsModal: React.FC<SurveyApplicationsModalProps> = (
                               const ev = evaluateBurdonTest(app);
                               return <span className="text-emerald-800 font-extrabold text-xs">Doğru: {ev.correctMarkings}</span>;
                             })()
-                          ) : isHolland ? (
+                          ) : (isHolland || app.surveyId === 'srv-holland-mesleki-tercih-envanteri' || app.surveySlug === 'holland-mesleki-tercih-envanteri' || (app.surveyTitle && app.surveyTitle.includes('Holland Mesleki Tercih'))) ? (
                             (() => {
-                              const ev = calculateHollandEvaluation((app.answers || []).map((a, idx) => ({ questionOrder: a.questionOrder || idx + 1, selectedOptionValue: a.answerValue || a.selectedOptionLabel || '' })));
-                              return <span className="text-sky-800 font-extrabold text-xs">{ev.dominantTypeLabel}</span>;
+                              const ev = getHollandEvaluation(app);
+                              return (
+                                <span className="text-sky-800 font-extrabold text-xs">
+                                  {ev.dominantTypeLabel} <span className="text-[10px] text-slate-500 font-normal">({ev.maxHoslanirimScore}/15)</span>
+                                </span>
+                              );
                             })()
                           ) : (isKGBN || app.surveyId === 'srv-kime-gore-ben-neyim' || app.surveySlug === 'kime-gore-ben-neyim' || (app.surveyTitle && app.surveyTitle.includes('Kime Göre Ben Neyim'))) ? (
                             (() => {
