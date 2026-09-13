@@ -1,6 +1,6 @@
 import { SurveyApplicationDto } from '@shared/ipc-types';
 import { 
-  evaluateProblemTaramaListesi
+  getPTLEvaluation
 } from '../../../../shared/problemTaramaListesiEvaluation';
 import { ReportHeaderInfo } from './DevamsizlikNedenleriPdfReport';
 
@@ -20,38 +20,8 @@ export class ProblemTaramaListesiPdfReport {
   }
 
   public static generateHtml(application: SurveyApplicationDto, schoolInfo?: ReportHeaderInfo): string {
-    let answersObj: Record<string, any> = {};
+    const evaluation = getPTLEvaluation(application);
     const appAny = application as any;
-    if (application.resultSnapshot?.rawMetrics?.answers) {
-      const snapAns = application.resultSnapshot.rawMetrics.answers;
-      if (Array.isArray(snapAns)) {
-        snapAns.forEach((a: any, idx: number) => {
-          const qNum = a.questionOrder || idx + 1;
-          const val = a.selectedOptionValue || a.answerValue || a.selectedOptionLabel || a.value || '';
-          answersObj[`q${qNum}`] = val;
-          if (a.questionId) answersObj[a.questionId] = val;
-        });
-      } else if (typeof snapAns === 'object') {
-        answersObj = snapAns;
-      }
-    } else if (typeof appAny.answers_json === 'string') {
-      try { answersObj = JSON.parse(appAny.answers_json); } catch {}
-    } else if (typeof appAny.answersJson === 'string') {
-      try { answersObj = JSON.parse(appAny.answersJson); } catch {}
-    } else if (appAny.answersJson && typeof appAny.answersJson === 'object') {
-      answersObj = appAny.answersJson;
-    } else if (application.answers && Array.isArray(application.answers)) {
-      application.answers.forEach((a, idx) => {
-        const qNum = a.questionOrder || idx + 1;
-        const val = (a as any).selectedOptionValue || a.answerValue || a.selectedOptionLabel || (a as any).value || '';
-        answersObj[`q${qNum}`] = val;
-        if (a.questionId) {
-          answersObj[a.questionId] = val;
-        }
-      });
-    }
-
-    const evaluation = evaluateProblemTaramaListesi(answersObj);
 
     const formattedDate = new Date(application.completedAt || application.createdAt || Date.now()).toLocaleDateString('tr-TR', {
       day: '2-digit',

@@ -75,6 +75,41 @@ export class HollandMeslekiTercihPdfReport {
       `;
     }).join('');
 
+    const typeCardsHtml = evaluation.typeResults.map(r => {
+      const isDominant = evaluation.dominantTypes.some(d => d.typeKey === r.typeKey);
+      const isDistant = evaluation.distantTypes.some(d => d.typeKey === r.typeKey);
+      const meta = r.metadata;
+
+      const borderColor = isDominant ? '#86efac' : isDistant ? '#fecdd3' : '#cbd5e1';
+      const bgColor = isDominant ? '#f0fdf4' : isDistant ? '#fff1f2' : '#ffffff';
+
+      return `
+        <div style="border: 1px solid ${borderColor}; background-color: ${bgColor}; border-radius: 6px; padding: 6px 8px; font-size: 8.5px; page-break-inside: avoid;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 4px;">
+            <div>
+              <strong style="font-size: 9.5px; color: #0f172a;">${HollandMeslekiTercihPdfReport.escapeHtml(r.title)} (${r.code})</strong>
+              ${isDominant ? ' <span style="font-size: 8px; background-color: #dcfce7; color: #166534; padding: 1px 4px; border-radius: 3px; font-weight: 700;">(Baskın)</span>' : ''}
+              ${isDistant ? ' <span style="font-size: 8px; background-color: #ffe4e6; color: #9f1239; padding: 1px 4px; border-radius: 3px; font-weight: 700;">(En Uzak)</span>' : ''}
+            </div>
+            <div style="font-family: monospace; font-size: 8.5px; color: #475569; font-weight: 700;">
+              <span style="color: #166534;">${r.hoslanirimCount}H</span> &bull; 
+              <span style="color: #475569;">${r.farketmezCount}F</span> &bull; 
+              <span style="color: #991b1b;">${r.hoslanmamCount}M</span>
+            </div>
+          </div>
+          <div style="color: #334155; line-height: 1.35; margin-bottom: 3px;">
+            <strong style="color: #0f172a;">Belirgin Özellikler:</strong> ${HollandMeslekiTercihPdfReport.escapeHtml(meta.belirginOzellikler)}
+          </div>
+          <div style="color: #334155; line-height: 1.35; margin-bottom: 3px;">
+            <strong style="color: #0f172a;">Baskın Etkinlikler / Yetenekler:</strong> ${HollandMeslekiTercihPdfReport.escapeHtml(meta.baskinTalepler.join(', '))}
+          </div>
+          <div style="color: #1e3a8a; line-height: 1.35;">
+            <strong style="color: #1e3a8a;">Tipik Meslekler (Kaynak):</strong> ${HollandMeslekiTercihPdfReport.escapeHtml(meta.tipikMeslekler.join(', '))}
+          </div>
+        </div>
+      `;
+    }).join('');
+
     const counselorName = (schoolInfo?.counselorName && schoolInfo.counselorName !== 'Psikolojik Danışman / Rehber Öğretmen')
       ? schoolInfo.counselorName
       : 'Psk. Dan. İzel Eriştiren';
@@ -240,7 +275,17 @@ export class HollandMeslekiTercihPdfReport {
     </table>
   </div>
 
-  <!-- 6. Guidance Notes -->
+  <!-- 6. 6 Types Detailed Characteristics & Occupations Cards -->
+  <div style="margin-bottom: 8px;">
+    <div style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #334155; margin-bottom: 4px;">
+      6 KİŞİLİK TİPİ ÖZELLİKLERİ VE TİPİK MESLEKLER
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+      ${typeCardsHtml}
+    </div>
+  </div>
+
+  <!-- 7. Guidance Notes -->
   <div style="border: 1px solid #cbd5e1; border-radius: 6px; background-color: #f8fafc; padding: 5px 8px; margin-bottom: 8px;">
     <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #334155; margin-bottom: 2px;">
       REHBERLİK DEĞERLENDİRME BİLGİLENDİRMESİ
@@ -253,7 +298,7 @@ export class HollandMeslekiTercihPdfReport {
     </p>
   </div>
 
-  <!-- 7. Clean Footer Signature -->
+  <!-- 8. Clean Footer Signature -->
   <table style="width: 100%; margin-top: 10px; border-top: 1px solid #cbd5e1; padding-top: 6px; font-size: 8.5px;" cellpadding="0" cellspacing="0">
     <tr>
       <td style="width: 100%; text-align: right; vertical-align: top;">

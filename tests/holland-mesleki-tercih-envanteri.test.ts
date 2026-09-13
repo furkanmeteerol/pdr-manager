@@ -401,12 +401,23 @@ describe('Holland Mesleki Tercih Envanteri (HOLLAND-90) Comprehensive Test Suite
       expect(html).toContain('Sosyal');
       expect(html).toContain('Gerçekçi');
       expect(html).toContain('sabit bir sayısal kesme değeri belirtilmemiştir');
+      expect(html).toContain('Belirgin Özellikler:');
+      expect(html).toContain('Baskın Etkinlikler / Yetenekler:');
+      expect(html).toContain('Tipik Meslekler (Kaynak):');
+      expect(html).toContain('Otomobil tamircisi');
+      expect(html).toContain('Biyolog');
+      expect(html).toContain('Mimar');
+      expect(html).toContain('Psikolojik Danışman');
+      expect(html).toContain('Pazarlamacı / Satış Müdürü');
+      expect(html).toContain('Muhasebeci / Mali Müşavir');
 
       const registryHtml = SurveyReportRegistry.generateReportHtml(mockApplication, {
         schoolName: 'Cumhuriyet Anadolu Lisesi',
       });
       expect(registryHtml).toContain('HOLLAND MESLEKİ TERCİH ENVANTERİ');
       expect(registryHtml).toContain('Tekin Çetin');
+      expect(registryHtml).toContain('Belirgin Özellikler:');
+      expect(registryHtml).toContain('Tipik Meslekler (Kaynak):');
     });
 
     it('should check hasReport in SurveyReportRegistry', () => {

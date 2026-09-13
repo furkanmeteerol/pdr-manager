@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  evaluateProblemTaramaListesi,
+  getPTLEvaluation,
   PTL_SCALE_METADATA
 } from '../../../../../shared/problemTaramaListesiEvaluation';
 import { Printer } from 'lucide-react';
@@ -18,24 +18,7 @@ export const ProblemTaramaListesiReport: React.FC<ProblemTaramaListesiReportProp
   onPrint,
   onClose
 }) => {
-  let answersRecord: Record<string, string> = {};
-
-  if (application?.answers) {
-    if (Array.isArray(application.answers)) {
-      application.answers.forEach((a: any, idx: number) => {
-        const qNum = a.questionOrder || idx + 1;
-        const val = (a.answerValue ?? a.selectedOptionLabel ?? '').trim();
-        answersRecord[`q${qNum}`] = val;
-        if (a.questionId) {
-          answersRecord[a.questionId] = val;
-        }
-      });
-    } else if (typeof application.answers === 'object') {
-      answersRecord = application.answers;
-    }
-  }
-
-  const result = evaluateProblemTaramaListesi(answersRecord);
+  const result = getPTLEvaluation(application);
 
   const studentName = student?.fullName || student?.name || application?.studentName || 'Öğrenci';
   const studentNo = student?.studentNumber || student?.schoolNumber || application?.studentNumber || '—';

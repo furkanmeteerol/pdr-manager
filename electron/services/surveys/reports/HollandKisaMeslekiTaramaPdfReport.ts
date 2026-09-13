@@ -49,18 +49,25 @@ export class HollandKisaMeslekiTaramaPdfReport {
       const isTop3 = rankIdx < 3;
       return `
         <tr style="border-bottom: 1px solid #cbd5e1; background-color: ${isTop3 ? '#f0fdf4' : '#ffffff'};">
-          <td style="padding: 6px 10px; text-align: center; font-weight: 800; color: #334155; border-right: 1px solid #cbd5e1;">
+          <td style="padding: 6px 10px; text-align: center; font-weight: 800; color: #334155; border-right: 1px solid #cbd5e1; vertical-align: top;">
             ${rankIdx + 1}
           </td>
-          <td style="padding: 6px 10px; font-weight: 800; color: #0f172a; border-right: 1px solid #cbd5e1;">
+          <td style="padding: 6px 10px; font-weight: 800; color: #0f172a; border-right: 1px solid #cbd5e1; vertical-align: top; white-space: nowrap;">
             ${HollandKisaMeslekiTaramaPdfReport.escapeHtml(r.title)} (${r.code})
-            ${isTop3 ? ' <span style="font-size: 10px; background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 700;">(İlk 3 Tip)</span>' : ''}
+            ${isTop3 ? '<br><span style="font-size: 9.5px; background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 700; display: inline-block; margin-top: 4px;">(İlk 3 Tip)</span>' : ''}
           </td>
-          <td style="padding: 6px 10px; text-align: center; font-family: monospace; font-weight: 800; color: #0f172a; border-right: 1px solid #cbd5e1;">
+          <td style="padding: 6px 10px; text-align: center; font-family: monospace; font-weight: 800; color: #0f172a; border-right: 1px solid #cbd5e1; vertical-align: top; white-space: nowrap;">
             ${r.score} <span style="font-size: 10px; color: #64748b; font-weight: normal;">/ 45</span>
           </td>
-          <td style="padding: 6px 10px; font-size: 10px; color: #475569;">
-            ${HollandKisaMeslekiTaramaPdfReport.escapeHtml(r.metadata.description)}
+          <td style="padding: 6px 10px; font-size: 10px; color: #334155;">
+            <div style="line-height: 1.35; margin-bottom: 4px;">
+              ${HollandKisaMeslekiTaramaPdfReport.escapeHtml(r.metadata.description)}
+            </div>
+            ${r.metadata.sampleActivities && r.metadata.sampleActivities.length > 0 ? `
+              <div style="font-size: 9px; color: #475569; border-top: 1px dashed #e2e8f0; padding-top: 3px; line-height: 1.3;">
+                <strong style="color: #0f172a;">Örnek İlgi ve Faaliyetler:</strong> ${HollandKisaMeslekiTaramaPdfReport.escapeHtml(r.metadata.sampleActivities.join(' • '))}
+              </div>
+            ` : ''}
           </td>
         </tr>
       `;

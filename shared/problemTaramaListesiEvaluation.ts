@@ -429,14 +429,37 @@ export function getPTLSourceClassification(totalSelected: number): PTLSourceClas
 export function isPTLItemMarked(val: any): boolean {
   if (val === true || val === 1 || val === '1' || val === 'true' || val === 'TRUE') return true;
   if (typeof val === 'string') {
-    const s = val.trim().toLowerCase();
-    return s === 'işaretledim' || s === 'isaretledim' || s === 'true' || s === '1' || s === 'evet' || s === 'selected' || s === 'var';
+    const s = val
+      .trim()
+      .replace(/İ/g, 'i')
+      .replace(/I/g, 'ı')
+      .toLowerCase()
+      .replace(/\u0307/g, '');
+    if (
+      s === 'işaretledim' ||
+      s === 'isaretledim' ||
+      s.includes('isaretle') ||
+      s.includes('işaretle') ||
+      s === 'true' ||
+      s === '1' ||
+      s === 'evet' ||
+      s === 'selected' ||
+      s === 'var'
+    ) return true;
+    if (s.startsWith('opt-problem-tarama-listesi-') || s.startsWith('opt-ptl-') || s.includes('opt-')) return true;
   }
   if (typeof val === 'object' && val !== null) {
     if (val.value !== undefined) return isPTLItemMarked(val.value);
     if (val.optionValue !== undefined) return isPTLItemMarked(val.optionValue);
+    if (val.selectedOptionValue !== undefined) return isPTLItemMarked(val.selectedOptionValue);
+    if (val.selectedOptionId !== undefined) return isPTLItemMarked(val.selectedOptionId);
+    if (val.optionId !== undefined) return isPTLItemMarked(val.optionId);
+    if (val.selectedOptionLabel !== undefined) return isPTLItemMarked(val.selectedOptionLabel);
     if (val.optionLabel !== undefined) return isPTLItemMarked(val.optionLabel);
     if (val.selected !== undefined) return isPTLItemMarked(val.selected);
+    if (val.answerValue !== undefined) return isPTLItemMarked(val.answerValue);
+    if (val.optionText !== undefined) return isPTLItemMarked(val.optionText);
+    if (val.text !== undefined) return isPTLItemMarked(val.text);
   }
   return false;
 }
@@ -466,14 +489,17 @@ export function evaluateProblemTaramaListesi(answers: Record<string, any>): PTLI
 
   PTL_ALL_QUESTIONS.forEach(q => {
     // Check multiple possible key formats:
-    // "100-1", "q1", "1", "100_1", "m1"
+    // "100-1", "q1", "1", "100_1", "m1", "q-problem-tarama-listesi-1"
     const keysToCheck = [
       q.id,
       `${q.sectionCode}-${q.questionNumber}`,
       `${q.sectionCode}_${q.questionNumber}`,
       `q${q.globalIndex}`,
       `m${q.globalIndex}`,
-      String(q.globalIndex)
+      String(q.globalIndex),
+      `q-problem-tarama-listesi-${q.globalIndex}`,
+      `q-ptl-${q.globalIndex}`,
+      `q-srv-problem-tarama-listesi-${q.globalIndex}`
     ];
 
     let marked = false;
@@ -527,6 +553,91 @@ export function evaluateProblemTaramaListesi(answers: Record<string, any>): PTLI
     selectedItems
   };
 }
+
+/**
+ * Resolves the canonical Problem Tarama Listesi (PTL-176) evaluation from an application DTO or answers payload.
+ * Checks frozen snapshot first, then rawMetrics, then recalculates if necessary.
+ */
+export function getPTLEvaluation(app: any): PTLIndividualEvaluationResult {
+  const snapAny = app?.resultSnapshot as any;
+  if (
+    snapAny?.ptlEvaluation?.sections &&
+    Array.isArray(snapAny.ptlEvaluation.sections) &&
+    snapAny.ptlEvaluation.sections.length === 7 &&
+    typeof snapAny.ptlEvaluation.totalSelected === 'number'
+  ) {
+    return snapAny.ptlEvaluation;
+  }
+  if (
+    snapAny?.rawMetrics?.ptlEvaluation?.sections &&
+    Array.isArray(snapAny.rawMetrics.ptlEvaluation.sections) &&
+    snapAny.rawMetrics.ptlEvaluation.sections.length === 7 &&
+    typeof snapAny.rawMetrics.ptlEvaluation.totalSelected === 'number'
+  ) {
+    return snapAny.rawMetrics.ptlEvaluation;
+  }
+
+  let rawAnswers: Record<string, any> = {};
+
+  const parseArrayAnswers = (arr: any[]) => {
+    arr.forEach((ans: any, idx: number) => {
+      const qNum = ans.questionOrder || idx + 1;
+      const val = ans.selectedOptionValue ?? ans.answerValue ?? ans.selectedOptionId ?? ans.selectedOptionLabel ?? ans.value ?? ans.answer ?? ans.selectedOptionText ?? '';
+      rawAnswers[`q${qNum}`] = val;
+      rawAnswers[String(qNum)] = val;
+      if (ans.questionId) {
+        rawAnswers[ans.questionId] = val;
+      }
+    });
+  };
+
+  if (snapAny?.rawMetrics?.answers) {
+    const snapAns = snapAny.rawMetrics.answers;
+    if (Array.isArray(snapAns)) {
+      parseArrayAnswers(snapAns);
+    } else if (typeof snapAns === 'object' && snapAns !== null) {
+      rawAnswers = { ...snapAns };
+    }
+  } else if (typeof app?.answers_json === 'string') {
+    try {
+      const parsed = JSON.parse(app.answers_json);
+      if (Array.isArray(parsed)) {
+        parseArrayAnswers(parsed);
+      } else if (typeof parsed === 'object' && parsed !== null) {
+        rawAnswers = { ...parsed };
+      }
+    } catch {}
+  } else if (typeof app?.answersJson === 'string') {
+    try {
+      const parsed = JSON.parse(app.answersJson);
+      if (Array.isArray(parsed)) {
+        parseArrayAnswers(parsed);
+      } else if (typeof parsed === 'object' && parsed !== null) {
+        rawAnswers = { ...parsed };
+      }
+    } catch {}
+  } else if (app?.answersJson && typeof app.answersJson === 'object') {
+    if (Array.isArray(app.answersJson)) {
+      parseArrayAnswers(app.answersJson);
+    } else {
+      rawAnswers = { ...app.answersJson };
+    }
+  } else if (app?.answers) {
+    if (Array.isArray(app.answers)) {
+      parseArrayAnswers(app.answers);
+    } else if (typeof app.answers === 'object' && app.answers !== null) {
+      rawAnswers = { ...app.answers };
+    }
+  } else if (Array.isArray(app)) {
+    parseArrayAnswers(app);
+  } else if (app && typeof app === 'object') {
+    rawAnswers = { ...app };
+  }
+
+  return evaluateProblemTaramaListesi(rawAnswers);
+}
+
+export const evaluatePTLResponses = evaluateProblemTaramaListesi;
 
 // ==========================================
 // Toplu / Sınıf Değerlendirme (Collective)
@@ -648,61 +759,7 @@ export function evaluateCollectivePTL(
   };
 
   const studentMatrix: PTLStudentMatrixRow[] = targetApps.map(app => {
-    let evalRes: PTLIndividualEvaluationResult | null = null;
-
-    if (app.resultSnapshot?.ptlEvaluation && Array.isArray(app.resultSnapshot.ptlEvaluation.sections) && app.resultSnapshot.ptlEvaluation.sections.length === 7) {
-      evalRes = app.resultSnapshot.ptlEvaluation;
-    } else if (app.resultSnapshot?.rawMetrics?.ptlEvaluation && Array.isArray(app.resultSnapshot.rawMetrics.ptlEvaluation.sections)) {
-      evalRes = app.resultSnapshot.rawMetrics.ptlEvaluation;
-    }
-
-    if (!evalRes) {
-      let rawAnswers: Record<string, any> = {};
-      if (app.answers) {
-        if (Array.isArray(app.answers)) {
-          app.answers.forEach((ans: any, idx: number) => {
-            const qNum = ans.questionOrder || idx + 1;
-            const val = ans.selectedOptionValue || ans.answerValue || ans.selectedOptionId || ans.selectedOptionLabel || ans.value;
-            rawAnswers[`q${qNum}`] = val;
-            if (ans.questionId) rawAnswers[ans.questionId] = val;
-          });
-        } else if (typeof app.answers === 'object') {
-          rawAnswers = app.answers;
-        }
-      } else if (app.resultSnapshot?.rawMetrics?.answers) {
-        const snapAns = app.resultSnapshot.rawMetrics.answers;
-        if (Array.isArray(snapAns)) {
-          snapAns.forEach((ans: any, idx: number) => {
-            const qNum = ans.questionOrder || idx + 1;
-            const val = ans.selectedOptionValue || ans.answerValue || ans.selectedOptionId || ans.selectedOptionLabel || ans.value;
-            rawAnswers[`q${qNum}`] = val;
-            if (ans.questionId) rawAnswers[ans.questionId] = val;
-          });
-        } else if (typeof snapAns === 'object') {
-          rawAnswers = snapAns;
-        }
-      } else if ((app as any).answers_json || (app as any).answersJson) {
-        try {
-          const parsed = JSON.parse((app as any).answers_json || (app as any).answersJson);
-          if (Array.isArray(parsed)) {
-            parsed.forEach((ans: any, idx: number) => {
-              const qNum = ans.questionOrder || idx + 1;
-              const val = ans.selectedOptionValue || ans.answerValue || ans.selectedOptionId || ans.selectedOptionLabel || ans.value;
-              rawAnswers[`q${qNum}`] = val;
-              if (ans.questionId) rawAnswers[ans.questionId] = val;
-            });
-          } else if (typeof parsed === 'object') {
-            rawAnswers = parsed;
-          }
-        } catch {}
-      }
-
-      evalRes = evaluateProblemTaramaListesi(rawAnswers);
-    }
-
-    if (!evalRes) {
-      evalRes = evaluateProblemTaramaListesi({});
-    }
+    const evalRes = getPTLEvaluation(app);
 
     const markedMap: Record<number, boolean> = {};
     for (let i = 1; i <= 176; i++) {

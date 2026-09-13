@@ -357,12 +357,20 @@ describe('Holland Kısa Biçim Mesleki Tarama Envanteri (HOLLAND-KISA-30) Compre
       expect(html).toContain('Psk. Danışman');
       expect(html).toContain('MESLEKİ KİŞİLİK PROFİLİ (İLK 3 TİP)');
       expect(html).toContain('Holland Kodu');
+      expect(html).toContain('Örnek İlgi ve Faaliyetler:');
+      expect(html).toContain('Elektronik alet tamiri');
+      expect(html).toContain('Laboratuvar deneyleri yapma');
+      expect(html).toContain('Müzik grubunda yer alma veya enstrüman çalma');
+      expect(html).toContain('İnsanların sorunlarını çözmelerine yardım etme');
+      expect(html).toContain('İş insanlarının öz geçmişlerini ve başarılarını takip etme');
+      expect(html).toContain('Sık sık notlar alma ve düzenleme');
 
       const registryHtml = SurveyReportRegistry.generateReportHtml(mockApplication, {
         schoolName: 'Cumhuriyet Anadolu Lisesi',
       });
       expect(registryHtml).toContain('HOLLAND KISA BİÇİM MESLEKİ TARAMA ENVANTERİ');
       expect(registryHtml).toContain('Tekin Çetin');
+      expect(registryHtml).toContain('Örnek İlgi ve Faaliyetler:');
     });
 
     it('should check hasReport in SurveyReportRegistry', () => {

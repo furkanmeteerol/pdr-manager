@@ -7,6 +7,7 @@ import {
   PTL_OPTIONS,
   getPTLSourceClassification,
   evaluateProblemTaramaListesi,
+  getPTLEvaluation,
   evaluateCollectivePTL,
   PTLApplicationData
 } from '../shared/problemTaramaListesiEvaluation';
@@ -541,4 +542,130 @@ describe('Problem Tarama Listesi (PTL-176) Test Suite', () => {
     expect(aliRow?.totalSelected).toBe(8);
     expect(aliRow?.sectionCounts['100']).toBe(2);
   });
+
+  // ==========================================
+  // TEST 13: getPTLEvaluation Canonical Çözümleme
+  // ==========================================
+  it('TEST 13: getPTLEvaluation fonksiyonu snapshot, rawMetrics, optionId veya DB questionId içeren tüm veri formatlarından doğru değerlendirmeyi üretmelidir', () => {
+    // 1. From pre-calculated snapshot
+    const mockWithSnapshot: any = {
+      resultSnapshot: {
+        ptlEvaluation: {
+          totalSelected: 5,
+          totalQuestions: 176,
+          percentage: 3,
+          sourceClassification: { available: true, level: 'Az', label: 'Az' },
+          sections: PTL_SECTIONS.map((s, idx) => ({
+            code: s.code,
+            romanCode: s.romanCode,
+            title: s.title,
+            selectedCount: idx === 0 ? 5 : 0,
+            totalCount: s.itemCount,
+            percentage: idx === 0 ? 19 : 0,
+            selectedItems: []
+          })),
+          selectedItemIndices: [1, 2, 3, 4, 5],
+          selectedItems: []
+        }
+      }
+    };
+    expect(getPTLEvaluation(mockWithSnapshot).totalSelected).toBe(5);
+
+    // 2. From rawMetrics.answers array with option IDs
+    const mockWithRawMetricsArray: any = {
+      resultSnapshot: {
+        rawMetrics: {
+          answers: [
+            { questionOrder: 1, questionId: 'q-problem-tarama-listesi-1', selectedOptionId: 'opt-problem-tarama-listesi-1-1' },
+            { questionOrder: 27, questionId: 'q-problem-tarama-listesi-27', selectedOptionValue: '1' },
+            { questionOrder: 62, questionId: 'q-problem-tarama-listesi-62', answerValue: 'İşaretledim' }
+          ]
+        }
+      }
+    };
+    const eval2 = getPTLEvaluation(mockWithRawMetricsArray);
+    expect(eval2.totalSelected).toBe(3);
+    expect(eval2.sections[0].selectedCount).toBe(1); // Section 100
+    expect(eval2.sections[1].selectedCount).toBe(1); // Section 200
+    expect(eval2.sections[2].selectedCount).toBe(1); // Section 300
+
+    // 3. From application.answers array with DB question IDs
+    const mockWithAnswersArray: any = {
+      answers: [
+        { questionId: 'q-problem-tarama-listesi-1', value: '1' },
+        { questionId: 'q-problem-tarama-listesi-2', value: '1' },
+        { questionId: 'q-problem-tarama-listesi-3', value: '1' }
+      ]
+    };
+    const eval3 = getPTLEvaluation(mockWithAnswersArray);
+    expect(eval3.totalSelected).toBe(3);
+    expect(eval3.sections[0].selectedCount).toBe(3);
+  });
+
+  // ==========================================
+  // TEST 14: PDF Çıktısı 68 Maddelik Gerçek Senaryo ve UI Uyumu
+  // ==========================================
+  it('TEST 14: 68 maddelik Problem Tarama Listesi uygulamasında PDF çıktısı 0 yerine 68 / 176 (%39), 7 alt alan dağılımını ve işaretlenen maddeleri eksiksiz içermelidir', () => {
+    // 68 marked items:
+    // Section 100 (1..26): all 26 marked -> 26/26 (100%)
+    // Section 200 (27..61): 33 of 35 marked -> 33/35 (94%) (e.g. 27..59)
+    // Section 300 (62..101): 9 of 40 marked -> 9/40 (23%) (e.g. 62..70)
+    // Total: 26 + 33 + 9 = 68 items
+    const rawAnswersList: any[] = [];
+    for (let i = 1; i <= 26; i++) {
+      rawAnswersList.push({ questionOrder: i, questionId: `q-problem-tarama-listesi-${i}`, answerValue: '1' });
+    }
+    for (let i = 27; i <= 59; i++) {
+      rawAnswersList.push({ questionOrder: i, questionId: `q-problem-tarama-listesi-${i}`, answerValue: '1' });
+    }
+    for (let i = 62; i <= 70; i++) {
+      rawAnswersList.push({ questionOrder: i, questionId: `q-problem-tarama-listesi-${i}`, answerValue: '1' });
+    }
+
+    const application68: any = {
+      id: 'app-ptl-68',
+      surveySlug: 'problem-tarama-listesi',
+      studentName: 'Elif Yılmaz',
+      studentNumber: '345',
+      className: '11-B',
+      completedAt: '2026-03-12T09:30:00Z',
+      resultSnapshot: {
+        rawMetrics: {
+          answers: rawAnswersList
+        }
+      }
+    };
+
+    const schoolInfo = {
+      schoolName: 'Anadolu Lisesi',
+      counselorName: 'Psk. Dan. İzel Eriştiren'
+    };
+
+    const pdfHtml = ProblemTaramaListesiPdfReport.generateHtml(application68, schoolInfo);
+
+    // Verify overall total
+    expect(pdfHtml).toContain('68');
+    expect(pdfHtml).toContain('/ 176 (%39)');
+    expect(pdfHtml).toContain('İşaretlenen Problemler (68 Madde)');
+
+    // Verify section distribution in table
+    // Section I: 26 / 26 (%100)
+    expect(pdfHtml).toContain('26 / 26');
+    expect(pdfHtml).toContain('%100');
+
+    // Section II: 33 / 35 (%94)
+    expect(pdfHtml).toContain('33 / 35');
+    expect(pdfHtml).toContain('%94');
+
+    // Section III: 9 / 40 (%23)
+    expect(pdfHtml).toContain('9 / 40');
+    expect(pdfHtml).toContain('%23');
+
+    // Verify individual marked item texts appear
+    expect(pdfHtml).toContain('Gözlerimden rahatsızım.'); // q1
+    expect(pdfHtml).toContain('Okulumuz temiz değil.'); // q27
+    expect(pdfHtml).toContain('Annem beni sevmiyor.'); // q62
+    expect(pdfHtml).not.toContain('Bu uygulamada öğrenci tarafından işaretlenmiş herhangi bir problem bulunmamaktadır.');
+  });
 });
+
