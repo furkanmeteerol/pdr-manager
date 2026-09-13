@@ -28,6 +28,7 @@ import { CounselorDocumentService } from './services/documents/CounselorDocument
 import { PresentationService } from './services/presentations/PresentationService';
 import { AppointmentScheduler } from './services/notifications/AppointmentScheduler';
 import { UpdateService } from './services/updater/UpdateService';
+import { FeedbackService } from './services/feedback/FeedbackService';
 import { loadEnvironmentVariables } from './services/security/EnvLoader';
 import { registerAllIpcHandlers } from './ipc';
 
@@ -193,8 +194,9 @@ app.whenReady().then(async () => {
   const presentationService = new PresentationService(db, deviceId, syncEngine, userDataPath);
   const updateService = new UpdateService(() => mainWindow);
   updateService.init();
+  const feedbackService = new FeedbackService();
 
-  // Register Whitelisted IPC (V1 + V2 + V3 + Data Transfer + Updater)
+  // Register Whitelisted IPC (V1 + V2 + V3 + Data Transfer + Updater + Feedback)
   registerAllIpcHandlers(
     authService,
     databaseService,
@@ -218,7 +220,8 @@ app.whenReady().then(async () => {
     counselorDocumentService,
     presentationService,
     () => mainWindow,
-    updateService
+    updateService,
+    feedbackService
   );
 
   createWindow();

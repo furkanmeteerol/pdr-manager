@@ -9,7 +9,8 @@ import {
   Clock,
   KeyRound,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  Bug
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { NotificationCenterPopover } from './NotificationCenterPopover';
@@ -19,7 +20,8 @@ export const TopBar: React.FC = () => {
     status, 
     lockSession, 
     setIsSearchOpen,
-    setActiveTab
+    setActiveTab,
+    setIsBugReportOpen
   } = useAppStore();
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -188,6 +190,18 @@ export const TopBar: React.FC = () => {
                     <span>Veri Aktarımı & Yedekleme</span>
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setIsBugReportOpen(true);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-amber-50 hover:text-amber-700 text-left transition-colors cursor-pointer"
+                  >
+                    <Bug className="w-4 h-4 text-amber-600" />
+                    <span>Hata / Sorun Bildir</span>
+                  </button>
+
                   <div className="h-px bg-slate-100 my-1" />
 
                   <button
@@ -205,6 +219,15 @@ export const TopBar: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Quick Bug Report Button */}
+          <button 
+            onClick={() => setIsBugReportOpen(true)}
+            title="Hata / Sorun Bildir"
+            className="p-1.5 rounded-xl bg-slate-50 hover:bg-amber-50 text-slate-500 hover:text-amber-700 transition-colors border border-slate-200 hover:border-amber-200 cursor-pointer shadow-xs"
+          >
+            <Bug className="w-4 h-4" />
+          </button>
 
           {/* Lock App Shortcut */}
           <button 

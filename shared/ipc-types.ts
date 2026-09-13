@@ -1413,6 +1413,9 @@ export interface ElectronApi {
     onStatusChange: (callback: (status: UpdateStatus) => void) => () => void;
     onDownloadProgress: (callback: (progress: UpdateProgress) => void) => () => void;
   };
+  feedback: {
+    send: (payload: { message: string }) => Promise<{ success: boolean; error?: string }>;
+  };
 }
 
 export type UpdateStateType = 

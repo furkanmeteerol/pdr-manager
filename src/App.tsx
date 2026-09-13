@@ -32,9 +32,10 @@ import { AcademicView } from './features/academic/AcademicView';
 import { ReportsView } from './features/reports/ReportsView';
 import { DataTransferView } from './features/data_transfer/DataTransferView';
 
-import { HardDrive, ShieldCheck, KeyRound } from 'lucide-react';
+import { HardDrive, ShieldCheck, KeyRound, Bug } from 'lucide-react';
 import { AutoUpdateCard } from './components/AutoUpdateCard';
 import { UpdateNotificationBanner } from './components/UpdateNotificationBanner';
+import { BugReportModal } from './components/BugReportModal';
 
 export const App: React.FC = () => {
   const { 
@@ -43,7 +44,9 @@ export const App: React.FC = () => {
     fetchAllData, 
     setIsSearchOpen,
     isKioskActive,
-    setIsKioskActive
+    setIsKioskActive,
+    isBugReportOpen,
+    setIsBugReportOpen
   } = useAppStore();
 
   useEffect(() => {
@@ -102,6 +105,29 @@ export const App: React.FC = () => {
             
             {/* Auto-Update Management Card */}
             <AutoUpdateCard />
+
+            {/* Feedback & Bug Reporting Card */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 shrink-0">
+                  <Bug className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-800">Geri Bildirim & Hata / Sorun Bildir</h3>
+                  <p className="text-xs text-slate-500 mt-0.5 max-w-xl">
+                    Uygulamayı kullanırken karşılaştığınız bir sorunu, teknik hatayı veya önerinizi geliştiriciye doğrudan iletebilirsiniz. Öğrenci verileriniz kesinlikle paylaşılmaz.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBugReportOpen(true)}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors flex items-center gap-2 cursor-pointer shrink-0"
+              >
+                <Bug className="w-4 h-4 text-amber-600" />
+                <span>Hata / Sorun Bildir</span>
+              </button>
+            </div>
 
             {/* Hardware, Security & Encryption Info */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-xs">
@@ -170,6 +196,10 @@ export const App: React.FC = () => {
       <MeetingFormModal />
       <AppointmentFormModal />
       <TaskFormModal />
+      <BugReportModal 
+        isOpen={isBugReportOpen} 
+        onClose={() => setIsBugReportOpen(false)} 
+      />
 
       {/* Student Mode / Kiosk Fullscreen Overlay */}
       {isKioskActive && (

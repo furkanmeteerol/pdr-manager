@@ -242,6 +242,9 @@ const api: ElectronApi = {
         ipcRenderer.removeListener('updater:downloadProgress', listener);
       };
     }
+  },
+  feedback: {
+    send: (payload: { message: string }) => ipcRenderer.invoke('feedback:send', payload)
   }
 };
 

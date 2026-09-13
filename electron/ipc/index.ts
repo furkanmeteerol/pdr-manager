@@ -36,12 +36,14 @@ import { registerAgendaIpc } from './agendaIpc';
 import { registerDocumentIpc } from './documentIpc';
 import { registerPresentationIpc } from './presentationIpc';
 import { registerUpdateIpc } from './updateIpc';
+import { registerFeedbackIpc } from './feedbackIpc';
 import { CounselorDocumentService } from '../services/documents/CounselorDocumentService';
 import { PresentationService } from '../services/presentations/PresentationService';
 import { DailyNoteService } from '../services/daily_notes/DailyNoteService';
 import { AgendaService } from '../services/agenda/AgendaService';
 import { DataTransferService } from '../services/backup/DataTransferService';
 import { UpdateService } from '../services/updater/UpdateService';
+import { FeedbackService } from '../services/feedback/FeedbackService';
 import { logger } from '../services/logger/Logger';
 
 export function registerAllIpcHandlers(
@@ -67,9 +69,10 @@ export function registerAllIpcHandlers(
   counselorDocumentService?: CounselorDocumentService,
   presentationService?: PresentationService,
   getMainWindow?: () => import('electron').BrowserWindow | null,
-  updateService?: UpdateService
+  updateService?: UpdateService,
+  feedbackService?: FeedbackService
 ) {
-  logger.info('Registering all whitelisted IPC handlers (V1 + V2 + V3 + Data Transfer + Updater)...');
+  logger.info('Registering all whitelisted IPC handlers (V1 + V2 + V3 + Data Transfer + Updater + Feedback)...');
   registerAuthIpc(authService, databaseService, dashboardService);
   registerSchoolIpc(databaseService);
   registerStudentIpc(studentService);
@@ -98,6 +101,9 @@ export function registerAllIpcHandlers(
   }
   if (updateService) {
     registerUpdateIpc(updateService);
+  }
+  if (feedbackService) {
+    registerFeedbackIpc(feedbackService);
   }
   logger.info('All IPC handlers registered successfully.');
 }

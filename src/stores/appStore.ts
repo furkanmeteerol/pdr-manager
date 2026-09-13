@@ -33,6 +33,7 @@ interface AppState {
   isTaskModalOpen: boolean;
   isActivityModalOpen: boolean;
   isKioskActive: boolean;
+  isBugReportOpen: boolean;
 
   isSyncing: boolean;
   lastSyncSummary: string | null;
@@ -60,6 +61,7 @@ interface AppState {
   setIsTaskModalOpen: (open: boolean) => void;
   setIsActivityModalOpen: (open: boolean) => void;
   setIsKioskActive: (active: boolean) => void;
+  setIsBugReportOpen: (open: boolean) => void;
 
   triggerSync: () => Promise<import('@shared/ipc-types').FullSyncResult | null>;
   executeFullSync: () => Promise<import('@shared/ipc-types').FullSyncResult | null>;
@@ -91,6 +93,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isTaskModalOpen: false,
   isActivityModalOpen: false,
   isKioskActive: false,
+  isBugReportOpen: false,
 
   fetchStatus: async () => {
     try {
@@ -235,6 +238,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setIsTaskModalOpen: (open: boolean) => set({ isTaskModalOpen: open }),
   setIsActivityModalOpen: (open: boolean) => set({ isActivityModalOpen: open }),
   setIsKioskActive: (active: boolean) => set({ isKioskActive: active }),
+  setIsBugReportOpen: (open: boolean) => set({ isBugReportOpen: open }),
 
   triggerSync: async () => {
     return get().executeFullSync();
