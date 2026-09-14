@@ -73,4 +73,76 @@ describe('Database & Migration Engine', () => {
     expect(student.first_name).toBe('Zeynep');
     expect(student.student_number).toBe('1042');
   });
+
+  describe('DatabaseService Lifecycle & macOS Re-init', () => {
+    const serviceTempDir = path.join(process.cwd(), 'temp_test_dbservice');
+    let dbService: import('../electron/services/database/DatabaseService').DatabaseService;
+
+    beforeEach(async () => {
+      if (fs.existsSync(serviceTempDir)) {
+        fs.rmSync(serviceTempDir, { recursive: true, force: true });
+      }
+      fs.mkdirSync(serviceTempDir, { recursive: true });
+      const { DatabaseService } = await import('../electron/services/database/DatabaseService');
+      dbService = new DatabaseService();
+    });
+
+    afterEach(() => {
+      if (dbService && dbService.isInitialized()) {
+        dbService.close();
+      }
+      if (fs.existsSync(serviceTempDir)) {
+        fs.rmSync(serviceTempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('Scenario A: Fresh init should create sqlite DB and allow wizard setup operations', () => {
+      expect(dbService.isInitialized()).toBe(false);
+      dbService.init(serviceTempDir);
+      expect(dbService.isInitialized()).toBe(true);
+
+      const rawSqlite = dbService.getSqlite();
+      expect(rawSqlite).toBeDefined();
+
+      // Wizard operations: saving metadata and school records
+      dbService.setMeta('school_name', 'Deneme Anadolu Lisesi');
+      expect(dbService.getMeta('school_name')).toBe('Deneme Anadolu Lisesi');
+
+      const deviceId = dbService.ensureDeviceId();
+      expect(deviceId).toBeDefined();
+      expect(deviceId.startsWith('DEVICE-')).toBe(true);
+
+      const schoolRow = rawSqlite.prepare('SELECT * FROM schools WHERE id = ?').get('default-school') as any;
+      expect(schoolRow).toBeDefined();
+    });
+
+    it('Scenario B: Idempotent init should not crash or corrupt state', () => {
+      dbService.init(serviceTempDir);
+      expect(dbService.isInitialized()).toBe(true);
+
+      // Call init again with same path
+      const result2 = dbService.init(serviceTempDir);
+      expect(result2.db).toBeDefined();
+      expect(result2.sqlite).toBeDefined();
+      expect(dbService.isInitialized()).toBe(true);
+    });
+
+    it('Scenario C: Safe re-init after close (e.g. macOS dock re-activation)', () => {
+      dbService.init(serviceTempDir);
+      expect(dbService.isInitialized()).toBe(true);
+
+      // Simulate closing DB
+      dbService.close();
+      expect(dbService.isInitialized()).toBe(false);
+
+      // Re-init (simulating app.on('activate'))
+      dbService.init(serviceTempDir);
+      expect(dbService.isInitialized()).toBe(true);
+
+      // Verify DB continues to work
+      const sqlite = dbService.getSqlite();
+      const school = sqlite.prepare('SELECT id FROM schools WHERE id = ?').get('default-school');
+      expect(school).toBeDefined();
+    });
+  });
 });

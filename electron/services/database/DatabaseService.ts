@@ -53,7 +53,15 @@ export class DatabaseService {
     return this.dynamicSqlite;
   }
 
+  public isInitialized(): boolean {
+    return this.sqlite !== null && this.db !== null;
+  }
+
   public init(userDataPath: string): { db: BetterSQLite3Database<typeof schema>; sqlite: Database.Database } {
+    if (this.isInitialized() && this.dbPath === path.join(userDataPath, 'database', 'pdr.sqlite')) {
+      return { db: this.getDynamicDb(), sqlite: this.getDynamicSqlite() };
+    }
+
     const dbDir = path.join(userDataPath, 'database');
     this.dbPath = path.join(dbDir, 'pdr.sqlite');
     this.emergencyBackupDir = path.join(userDataPath, 'backups', 'local_emergency');
@@ -193,10 +201,16 @@ export class DatabaseService {
 
   public close(): void {
     if (this.sqlite) {
-      this.sqlite.close();
-      this.sqlite = null;
-      this.db = null;
-      logger.info('Closed SQLite database connection');
+      try {
+        this.checkpoint();
+        this.sqlite.close();
+      } catch (err) {
+        logger.warn('Error closing SQLite database connection:', err);
+      } finally {
+        this.sqlite = null;
+        this.db = null;
+        logger.info('Closed SQLite database connection');
+      }
     }
   }
 }

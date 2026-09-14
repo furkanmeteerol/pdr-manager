@@ -35,6 +35,8 @@ import { registerAllIpcHandlers } from './ipc';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+app.setName('PDR Manager');
+
 let mainWindow: BrowserWindow | null = null;
 
 // Enforce single application instance
@@ -227,6 +229,10 @@ app.whenReady().then(async () => {
   createWindow();
 
   app.on('activate', () => {
+    if (!databaseService.isInitialized()) {
+      const userDataPath = app.getPath('userData');
+      databaseService.init(userDataPath);
+    }
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
@@ -234,8 +240,12 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  databaseService.close();
   if (process.platform !== 'darwin') {
+    databaseService.close();
     app.quit();
   }
+});
+
+app.on('before-quit', () => {
+  databaseService.close();
 });
