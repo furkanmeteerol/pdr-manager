@@ -14,7 +14,8 @@ permissions:
   contents: write
 
 jobs:
-  build-and-publish:
+  build-and-publish-windows:
+    name: Build & Publish (Windows x64)
     runs-on: windows-latest
     steps:
       - name: Checkout Source Code
@@ -37,7 +38,7 @@ jobs:
               exit 1
             fi
           fi
-          echo "Building & Publishing PDR Manager version: v$PACKAGE_VER"
+          echo "Building & Publishing Windows PDR Manager version: v$PACKAGE_VER"
 
       - name: Install Dependencies
         run: npm ci --legacy-peer-deps
@@ -55,6 +56,52 @@ jobs:
 
       - name: Build Windows NSIS & Publish to GitHub Releases
         run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_UPDATE_TOKEN: ${{ secrets.PDR_UPDATE_TOKEN }}
+
+  build-and-publish-macos:
+    name: Build & Publish (macOS ARM64)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Validate Version Consistency
+        shell: bash
+        run: |
+          PACKAGE_VER=$(node -p "require('./package.json').version")
+          if [ -n "${{ github.ref_name }}" ] && [[ "${{ github.ref_name }}" == v* ]]; then
+            TAG_VER="${GITHUB_REF_NAME#v}"
+            if [ "$PACKAGE_VER" != "$TAG_VER" ]; then
+              echo "::error::Version mismatch! package.json ($PACKAGE_VER) does not match Git tag ($TAG_VER)"
+              exit 1
+            fi
+          fi
+          echo "Building & Publishing macOS PDR Manager version: v$PACKAGE_VER"
+
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run Test Suite (Regression & Integrity Check)
+        run: npm test
+
+      - name: Build Renderer & Electron Main
+        run: npm run build
+        env:
+          GITHUB_UPDATE_TOKEN: ${{ secrets.PDR_UPDATE_TOKEN }}
+
+      - name: Rebuild Native Modules for macOS ARM64
+        run: npm run rebuild-native:mac
+
+      - name: Build macOS DMG & ZIP and Publish to GitHub Releases
+        run: npx electron-builder --mac --arm64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_UPDATE_TOKEN: ${{ secrets.PDR_UPDATE_TOKEN }}
