@@ -179,22 +179,30 @@ export const AutoUpdateCard: React.FC = () => {
         )}
 
         {status.state === 'downloaded' && (
-          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
               <div>
                 <div className="text-xs font-bold text-emerald-950">Güncelleme Hazır! (v{status.availableVersion})</div>
-                <div className="text-[11px] text-emerald-800">
-                  Yeni sürüm başarıyla indirildi. Kurulumu tamamlamak için uygulamayı yeniden başlatınız.
+                <div className="text-[11px] text-emerald-800 mt-0.5 leading-relaxed">
+                  {status.platform === 'darwin' ? (
+                    <span>
+                      Yeni sürüm DMG dosyası başarıyla indirildi. <strong>&ldquo;DMG&apos;yi Aç&rdquo;</strong> butonuna basarak açılan pencereden PDR Manager uygulamasını Applications (Uygulamalar) klasörüne sürükleyiniz. Mevcut sürümün üzerine yazmanız normaldir; verileriniz ve ayarlarınız silinmez.
+                    </span>
+                  ) : (
+                    <span>
+                      Yeni sürüm başarıyla indirildi. Kurulumu tamamlamak için uygulamayı yeniden başlatınız.
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
             <button
               onClick={() => quitAndInstall()}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95 shrink-0 self-start md:self-auto"
             >
               <RefreshCw className="w-4 h-4" />
-              <span>Şimdi Güncelle</span>
+              <span>{status.platform === 'darwin' ? "DMG'yi Aç ve Kur" : "Şimdi Güncelle"}</span>
             </button>
           </div>
         )}

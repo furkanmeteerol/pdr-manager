@@ -1454,6 +1454,7 @@ export interface UpdateStatus {
   errorPhase?: UpdateErrorPhaseType;
   feedUrl: string;
   checkedAt: number | null;
+  platform?: 'darwin' | 'win32' | 'linux';
 }
 
 declare global {

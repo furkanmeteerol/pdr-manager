@@ -52,7 +52,7 @@ export const UpdateNotificationBanner: React.FC = () => {
 
           {status.state === 'downloaded' && (
             <span>
-              <strong>Güncelleme Hazır!</strong> PDR Manager <strong>v{status.availableVersion}</strong> başarıyla indirildi.
+              <strong>Güncelleme Hazır!</strong> PDR Manager <strong>v{status.availableVersion}</strong> başarıyla indirildi. {status.platform === 'darwin' ? "DMG'yi açarak Applications'a sürükleyiniz." : ""}
             </span>
           )}
         </div>
@@ -85,7 +85,7 @@ export const UpdateNotificationBanner: React.FC = () => {
               className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Şimdi Güncelle ve Yeniden Başlat</span>
+              <span>{status.platform === 'darwin' ? "DMG'yi Aç ve Kur" : "Şimdi Güncelle ve Yeniden Başlat"}</span>
             </button>
             <button
               onClick={() => setIsDismissed(true)}

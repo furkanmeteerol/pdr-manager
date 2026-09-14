@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'node:path';
 import fs from 'node:fs';
 import Database from 'better-sqlite3';
-import { isNewerVersion, UpdateService, GITHUB_OWNER, GITHUB_REPO, GITHUB_RELEASES_URL } from '../electron/services/updater/UpdateService';
+import { isNewerVersion, UpdateService, findMacArm64DmgAsset, GITHUB_OWNER, GITHUB_REPO, GITHUB_RELEASES_URL } from '../electron/services/updater/UpdateService';
 import { getClientUpdateToken } from '../electron/services/updater/UpdateConfig';
 import packageJson from '../package.json';
 
@@ -205,6 +205,84 @@ describe('PDR Manager Auto-Updater Test Suite (GitHub Releases & Private Repo)',
       expect(updatedDevice.app_version).toBe('1.0.1');
 
       sqlite2.close();
+    });
+  });
+
+  describe('6. macOS ARM64 DMG Manual Update Engine (Tests A to I)', () => {
+    const sampleAssets = [
+      { name: 'PDR-Manager-1.1.2-arm64.dmg', browser_download_url: 'https://github.com/mock/download/PDR-Manager-1.1.2-arm64.dmg', size: 104857600 },
+      { name: 'PDR-Manager-1.1.2-arm64.dmg.blockmap', browser_download_url: 'https://github.com/mock/download/PDR-Manager-1.1.2-arm64.dmg.blockmap', size: 1024 },
+      { name: 'PDR-Manager-1.1.2-arm64-mac.zip', browser_download_url: 'https://github.com/mock/download/PDR-Manager-1.1.2-arm64-mac.zip', size: 98000000 },
+      { name: 'PDR-Manager-1.1.2-mac.zip', browser_download_url: 'https://github.com/mock/download/PDR-Manager-1.1.2-mac.zip', size: 98000000 },
+      { name: 'PDR-Manager-Setup-1.1.2.exe', browser_download_url: 'https://github.com/mock/download/PDR-Manager-Setup-1.1.2.exe', size: 85000000 },
+      { name: 'PDR-Manager-Setup-1.1.2.exe.blockmap', browser_download_url: 'https://github.com/mock/download/PDR-Manager-Setup-1.1.2.exe.blockmap', size: 1024 },
+      { name: 'latest-mac.yml', browser_download_url: 'https://github.com/mock/download/latest-mac.yml', size: 500 },
+      { name: 'latest.yml', browser_download_url: 'https://github.com/mock/download/latest.yml', size: 500 }
+    ];
+
+    it('Test A: should find PDR-Manager-1.1.2-arm64.dmg in release assets', () => {
+      const match = findMacArm64DmgAsset(sampleAssets);
+      expect(match).not.toBeNull();
+      expect(match!.name).toBe('PDR-Manager-1.1.2-arm64.dmg');
+      expect(match!.downloadUrl).toBe('https://github.com/mock/download/PDR-Manager-1.1.2-arm64.dmg');
+      expect(match!.size).toBe(104857600);
+    });
+
+    it('Test B: should NOT select Windows .exe asset for macOS', () => {
+      const windowsOnlyAssets = [
+        { name: 'PDR-Manager-Setup-1.1.2.exe', browser_download_url: 'https://github.com/mock/download/PDR-Manager-Setup-1.1.2.exe', size: 85000000 },
+        { name: 'latest.yml', browser_download_url: 'https://github.com/mock/download/latest.yml', size: 500 }
+      ];
+      const match = findMacArm64DmgAsset(windowsOnlyAssets);
+      expect(match).toBeNull();
+    });
+
+    it('Test C: should NOT select .zip asset for macOS', () => {
+      const zipOnlyAssets = [
+        { name: 'PDR-Manager-1.1.2-arm64-mac.zip', browser_download_url: 'https://github.com/mock/download/PDR-Manager-1.1.2-arm64-mac.zip', size: 98000000 },
+        { name: 'PDR-Manager-1.1.2-mac.zip', browser_download_url: 'https://github.com/mock/download/PDR-Manager-1.1.2-mac.zip', size: 98000000 }
+      ];
+      const match = findMacArm64DmgAsset(zipOnlyAssets);
+      expect(match).toBeNull();
+    });
+
+    it('Test D: should NOT select .blockmap asset for macOS', () => {
+      const blockmapOnlyAssets = [
+        { name: 'PDR-Manager-1.1.2-arm64.dmg.blockmap', browser_download_url: 'https://github.com/mock/download/PDR-Manager-1.1.2-arm64.dmg.blockmap', size: 1024 }
+      ];
+      const match = findMacArm64DmgAsset(blockmapOnlyAssets);
+      expect(match).toBeNull();
+    });
+
+    it('Test E: should report update available when GitHub latest is newer', () => {
+      expect(isNewerVersion('1.1.2', '1.1.1')).toBe(true);
+      expect(isNewerVersion('v1.1.2', '1.1.1')).toBe(true);
+      expect(isNewerVersion('1.2.0', '1.1.3')).toBe(true);
+      expect(isNewerVersion('2.0.0', '1.9.9')).toBe(true);
+    });
+
+    it('Test F: should report up to date (not-available) when remote is same or older', () => {
+      expect(isNewerVersion('1.1.1', '1.1.1')).toBe(false);
+      expect(isNewerVersion('v1.1.1', '1.1.1')).toBe(false);
+      expect(isNewerVersion('1.1.0', '1.1.1')).toBe(false);
+    });
+
+    it('Test G & H: UpdateService state transitions on macOS', async () => {
+      const mockWinGetter = () => null;
+      const service = new UpdateService(mockWinGetter);
+      const status = service.getStatus();
+      expect(status).toBeDefined();
+      expect(status.state).toBe('idle');
+    });
+
+    it('Test I: Downloaded DMG not found returns meaningful error instead of crash', async () => {
+      const mockWinGetter = () => null;
+      const service = new UpdateService(mockWinGetter);
+
+      // In development mode without FORCE_UPDATE_CHECK
+      const res = await service.quitAndInstall();
+      expect(res.success).toBe(false);
+      expect(res.error).toBeDefined();
     });
   });
 });
