@@ -607,8 +607,11 @@ describe('PDR Manager — Profesyonel PDF Raporu + İki PC Veri Aktarımı ve DB
       expect(metaKeysInDb).not.toContain('local_password_salt');
       expect(metaKeysInDb).not.toContain('wrapped_dek');
 
-      // Failed export should NOT update last backup timestamp
-      const failedExportRes = await pc1DataTransferService.exportDataPackage(path.join('Z:\\NonExistentDrive', 'invalid.pdrbak'), backupPass);
+      // Failed export should NOT update last backup timestamp (deterministic cross-platform unwritable path)
+      const blockingFile = path.join(tempTestDir, 'blocking_file.txt');
+      fs.writeFileSync(blockingFile, 'blocking');
+      const invalidPath = path.join(blockingFile, 'invalid_dir', 'invalid.pdrbak');
+      const failedExportRes = await pc1DataTransferService.exportDataPackage(invalidPath, backupPass);
       expect(failedExportRes.success).toBe(false);
       const afterFailedBackupInfo = pc1DataTransferService.getLastBackupInfo();
       expect(afterFailedBackupInfo.lastBackupTimestamp).toBeNull();
