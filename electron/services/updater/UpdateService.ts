@@ -46,6 +46,7 @@ export class UpdateService {
   private getMainWindow: () => BrowserWindow | null;
   private isChecking: boolean = false;
   private isDownloading: boolean = false;
+  private currentPhase: 'check' | 'download' | 'install' | null = null;
 
   constructor(getMainWindow: () => BrowserWindow | null) {
     this.getMainWindow = getMainWindow;
@@ -60,6 +61,7 @@ export class UpdateService {
       releaseNotes: null,
       progress: null,
       errorMessage: null,
+      errorPhase: null,
       feedUrl: GITHUB_RELEASES_URL,
       checkedAt: null
     };
@@ -169,14 +171,22 @@ export class UpdateService {
       });
 
       autoUpdater.on('error', (err: Error) => {
+        const errorPhase: 'check' | 'download' | 'install' = 
+          this.currentPhase || (this.status.state === 'downloaded' ? 'install' : this.status.state === 'downloading' ? 'download' : 'check');
+
         this.isChecking = false;
         this.isDownloading = false;
         this.status.state = 'error';
+        this.status.errorPhase = errorPhase;
 
-        // Parse user-friendly error message
         const errStr = err?.message || String(err);
-        let userFriendlyMsg = 'GitHub Releases sunucusuna bağlanılamadı. Lütfen internet bağlantınızı kontrol ediniz.';
-        
+        const errStack = err?.stack || '';
+
+        // Log the full error and stack trace for complete visibility
+        logger.error(`[AutoUpdater] Update error occurred in phase [${errorPhase}]: ${errStr}`, { stack: errStack });
+
+        let userFriendlyMsg = errStr;
+
         if (errStr.includes('net::ERR_INTERNET_DISCONNECTED') || errStr.includes('ENOTFOUND') || errStr.includes('EAI_AGAIN')) {
           userFriendlyMsg = 'İnternet bağlantısı yok. Lütfen ağ bağlantınızı kontrol edip tekrar deneyiniz.';
         } else if (errStr.includes('401') || errStr.includes('403') || errStr.includes('Bad credentials')) {
@@ -185,10 +195,15 @@ export class UpdateService {
           userFriendlyMsg = 'GitHub üzerinde yayınlanmış bir sürüm paketi bulunamadı veya erişim yetkisi yetersiz.';
         } else if (errStr.includes('timeout') || errStr.includes('ETIMEDOUT')) {
           userFriendlyMsg = 'GitHub Releases sunucusuna bağlanırken zaman aşımı oluştu.';
+        } else if (errorPhase === 'install') {
+          userFriendlyMsg = `Kurulum hatası: ${errStr}`;
+        } else if (errorPhase === 'download') {
+          userFriendlyMsg = `İndirme hatası: ${errStr}`;
+        } else {
+          userFriendlyMsg = errStr;
         }
 
         this.status.errorMessage = userFriendlyMsg;
-        logger.warn(`[AutoUpdater] Update error occurred: ${errStr}`);
         this.broadcastStatus();
       });
     } catch (err) {
@@ -227,7 +242,9 @@ export class UpdateService {
     }
 
     try {
+      this.currentPhase = 'check';
       this.status.state = 'checking';
+      this.status.errorPhase = null;
       this.status.errorMessage = null;
       this.status.checkedAt = Date.now();
       this.broadcastStatus();
@@ -236,8 +253,10 @@ export class UpdateService {
     } catch (err: any) {
       this.isChecking = false;
       this.status.state = 'error';
-      this.status.errorMessage = 'GitHub Releases sunucusuna erişilemedi. Lütfen internet bağlantınızı kontrol ediniz.';
-      logger.warn('[AutoUpdater] Check for updates failed:', err);
+      this.status.errorPhase = 'check';
+      const errMsg = err?.message || 'GitHub Releases sunucusuna erişilemedi. Lütfen internet bağlantınızı kontrol ediniz.';
+      this.status.errorMessage = errMsg;
+      logger.error(`[AutoUpdater] Check for updates threw exception: ${errMsg}`, { stack: err?.stack });
       this.broadcastStatus();
     }
 
@@ -256,8 +275,10 @@ export class UpdateService {
     }
 
     try {
+      this.currentPhase = 'download';
       this.isDownloading = true;
       this.status.state = 'downloading';
+      this.status.errorPhase = null;
       this.status.progress = { percent: 0, bytesPerSecond: 0, transferred: 0, total: 0 };
       this.broadcastStatus();
 
@@ -266,8 +287,10 @@ export class UpdateService {
     } catch (err: any) {
       this.isDownloading = false;
       this.status.state = 'error';
+      this.status.errorPhase = 'download';
       const errMsg = err?.message || 'Güncelleme indirilirken bir hata oluştu.';
-      this.status.errorMessage = errMsg;
+      this.status.errorMessage = `İndirme hatası: ${errMsg}`;
+      logger.error(`[AutoUpdater] downloadUpdate threw exception: ${errMsg}`, { stack: err?.stack });
       this.broadcastStatus();
       return { success: false, error: errMsg };
     }
@@ -285,12 +308,17 @@ export class UpdateService {
     }
 
     try {
+      this.currentPhase = 'install';
       logger.info('[AutoUpdater] Executing quitAndInstall (silent update & relaunch)...');
       autoUpdater.quitAndInstall(false, true);
       return { success: true };
     } catch (err: any) {
+      this.status.state = 'error';
+      this.status.errorPhase = 'install';
       const errMsg = err?.message || 'Uygulama yeniden başlatılırken bir hata oluştu.';
-      logger.error(`[AutoUpdater] quitAndInstall failed: ${errMsg}`);
+      this.status.errorMessage = `Kurulum hatası: ${errMsg}`;
+      logger.error(`[AutoUpdater] quitAndInstall threw exception: ${errMsg}`, { stack: err?.stack });
+      this.broadcastStatus();
       return { success: false, error: errMsg };
     }
   }

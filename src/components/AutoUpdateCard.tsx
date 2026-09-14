@@ -204,16 +204,30 @@ export const AutoUpdateCard: React.FC = () => {
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
               <div>
-                <div className="text-xs font-bold text-rose-950">Güncelleme Kontrolü Yapılamadı</div>
-                <div className="text-[11px] text-rose-700">
+                <div className="text-xs font-bold text-rose-950">
+                  {status.errorPhase === 'install'
+                    ? 'Güncelleme Kurulamadı'
+                    : status.errorPhase === 'download'
+                    ? 'Güncelleme İndirilemedi'
+                    : 'Güncelleme Kontrolü Yapılamadı'}
+                </div>
+                <div className="text-[11px] text-rose-700 font-mono break-all max-w-xl mt-0.5">
                   {status.errorMessage || actionError || 'Güncelleme sunucusuna ulaşılamadı.'}
                 </div>
               </div>
             </div>
             <button
-              onClick={() => checkForUpdates()}
-              disabled={isChecking}
-              className="px-3 py-1.5 bg-white hover:bg-rose-100/50 text-rose-800 border border-rose-200 text-xs font-bold rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+              onClick={() => {
+                if (status.errorPhase === 'install') {
+                  quitAndInstall();
+                } else if (status.errorPhase === 'download') {
+                  downloadUpdate();
+                } else {
+                  checkForUpdates();
+                }
+              }}
+              disabled={isChecking || isDownloading}
+              className="px-3 py-1.5 bg-white hover:bg-rose-100/50 text-rose-800 border border-rose-200 text-xs font-bold rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0 ml-3"
             >
               <RefreshCw className="w-3.5 h-3.5 text-rose-600" />
               <span>Tekrar Dene</span>

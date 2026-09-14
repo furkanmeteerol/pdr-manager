@@ -1428,6 +1428,8 @@ export type UpdateStateType =
   | 'error' 
   | 'dev-mode';
 
+export type UpdateErrorPhaseType = 'check' | 'download' | 'install' | null;
+
 export interface UpdateProgress {
   percent: number;
   bytesPerSecond: number;
@@ -1449,6 +1451,7 @@ export interface UpdateStatus {
   releaseNotes: string | null;
   progress: UpdateProgress | null;
   errorMessage: string | null;
+  errorPhase?: UpdateErrorPhaseType;
   feedUrl: string;
   checkedAt: number | null;
 }

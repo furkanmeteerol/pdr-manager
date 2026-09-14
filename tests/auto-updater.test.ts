@@ -123,6 +123,12 @@ describe('PDR Manager Auto-Updater Test Suite (GitHub Releases & Private Repo)',
       expect(status.state).toBe('dev-mode');
       expect(status.errorMessage).toBeNull();
     });
+
+    it('should initialize status with errorPhase as null', () => {
+      const mockWinGetter = () => null;
+      const service = new UpdateService(mockWinGetter);
+      expect(service.getStatus().errorPhase).toBeNull();
+    });
   });
 
   describe('5. SQLite Database & User Data Preservation Simulation', () => {
